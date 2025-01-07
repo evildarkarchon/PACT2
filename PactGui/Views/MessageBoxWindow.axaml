@@ -1,0 +1,40 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:PACT2.PactGui.ViewModels"
+        x:Class="PACT2.PactGui.Views.MessageBoxWindow"
+        x:DataType="vm:MessageBoxViewModel"
+        Width="400"
+        Height="150"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+    
+    <Design.DataContext>
+        <vm:MessageBoxViewModel />
+    </Design.DataContext>
+
+    <DockPanel Margin="10">
+        <StackPanel DockPanel.Dock="Bottom" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right" 
+                    Spacing="10">
+            <Button x:Name="OkButton" 
+                    Content="OK" 
+                    Click="OkButton_Click" 
+                    Width="70"
+                    IsVisible="{Binding ShowOkButton}"/>
+            <Button x:Name="YesButton" 
+                    Content="Yes" 
+                    Click="YesButton_Click" 
+                    Width="70"
+                    IsVisible="{Binding ShowYesNoButtons}"/>
+            <Button x:Name="NoButton" 
+                    Content="No" 
+                    Click="NoButton_Click" 
+                    Width="70"
+                    IsVisible="{Binding ShowYesNoButtons}"/>
+        </StackPanel>
+        <TextBlock Text="{Binding Message}" 
+                   TextWrapping="Wrap" 
+                   VerticalAlignment="Center"/>
+    </DockPanel>
+</Window>
