@@ -9,9 +9,6 @@
   <component name="ChangeListManager">
     <list default="true" id="69757505-0801-4616-8442-219e0fcc9b33" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.PACT2/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.PACT2/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PACT2.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/PACT2.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PactCore/Models/Info.cs" beforeDir="false" afterPath="$PROJECT_DIR$/PactCore/Models/Info.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PactCore/Services/PluginService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/PactCore/Services/PluginService.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -34,6 +31,8 @@
   }
 }</component>
   <component name="HighlightingSettingsPerFile">
+    <setting file="mock://C:/Users/evild/RiderProjects/PACT2/PactCore/Models/Info.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="mock://C:/Users/evild/RiderProjects/PACT2/PactCore/Services/PluginService.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$USER_HOME$/source/repos/FormID Database Manager/MainWindow.xaml.cs" root0="SKIP_HIGHLIGHTING" />
   </component>
   <component name="MetaFilesCheckinStateConfiguration" checkMetaFiles="true" />
@@ -101,7 +100,8 @@
       <workItem from="1736235752571" duration="4552000" />
       <workItem from="1736308790329" duration="368000" />
       <workItem from="1736309170070" duration="2823000" />
-      <workItem from="1736388606762" duration="1255000" />
+      <workItem from="1736388606762" duration="4818000" />
+      <workItem from="1736409084674" duration="214000" />
     </task>
     <task id="LOCAL-00001" summary="Initialize Avalonia project setup&#10;&#10;Added a new Avalonia-based project with necessary configurations, including main window, application entry point, and default application styles. Integrated Fluent theme and essential dependencies to enable Avalonia UI framework functionality.">
       <option name="closed" value="true" />
@@ -119,7 +119,15 @@
       <option name="project" value="LOCAL" />
       <updated>1736156297017</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="Add TES4 and VR support to PACT tool configurations&#10;&#10;Extended PACT functionality by integrating TES4 (Oblivion) and VR support in configurations and processing logic. Updated YAML settings, skip lists, and XEdit lists to include TES4 and VR-related entries. Refactored code to streamline handling of new game modes and avoid redundancy.">
+      <option name="closed" value="true" />
+      <created>1736391401179</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1736391401179</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -131,7 +139,8 @@
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
     <MESSAGE value="Initialize Avalonia project setup&#10;&#10;Added a new Avalonia-based project with necessary configurations, including main window, application entry point, and default application styles. Integrated Fluent theme and essential dependencies to enable Avalonia UI framework functionality." />
     <MESSAGE value="Add initial project setup with Avalonia framework&#10;&#10;This commit introduces the initial structure for the PACT2 project. It includes Avalonia framework integration, project files, solution setup, and basic application components such as MainWindow and App configuration." />
-    <option name="LAST_COMMIT_MESSAGE" value="Add initial project setup with Avalonia framework&#10;&#10;This commit introduces the initial structure for the PACT2 project. It includes Avalonia framework integration, project files, solution setup, and basic application components such as MainWindow and App configuration." />
+    <MESSAGE value="Add TES4 and VR support to PACT tool configurations&#10;&#10;Extended PACT functionality by integrating TES4 (Oblivion) and VR support in configurations and processing logic. Updated YAML settings, skip lists, and XEdit lists to include TES4 and VR-related entries. Refactored code to streamline handling of new game modes and avoid redundancy." />
+    <option name="LAST_COMMIT_MESSAGE" value="Add TES4 and VR support to PACT tool configurations&#10;&#10;Extended PACT functionality by integrating TES4 (Oblivion) and VR support in configurations and processing logic. Updated YAML settings, skip lists, and XEdit lists to include TES4 and VR-related entries. Refactored code to streamline handling of new game modes and avoid redundancy." />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
