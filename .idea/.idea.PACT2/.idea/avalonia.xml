@@ -3,10 +3,7 @@
   <component name="AvaloniaProject">
     <option name="projectPerEditor">
       <map>
-        <entry key="App.axaml" value="PACT2.csproj" />
-        <entry key="MainWindow.axaml" value="PACT2.csproj" />
-        <entry key="PactCore/Views/MessageBoxWindow.axaml" value="PACT2.csproj" />
-        <entry key="PactGui/Views/MessageBoxWindow.axaml" value="PACT2.csproj" />
+        <entry key="Views/MainWindow.axaml" value="PACT2.csproj" />
       </map>
     </option>
   </component>
