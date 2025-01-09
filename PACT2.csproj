@@ -20,6 +20,8 @@
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
         <PackageReference Include="Mutagen.Bethesda" Version="0.48.1" />
+        <PackageReference Include="Mutagen.Bethesda.FormKeys.Fallout4" Version="3.4.0" />
+        <PackageReference Include="Mutagen.Bethesda.FormKeys.SkyrimSE" Version="3.4.0" />
         <PackageReference Include="YamlDotNet" Version="16.3.0" />
     </ItemGroup>
 

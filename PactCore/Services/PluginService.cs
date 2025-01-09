@@ -214,14 +214,14 @@ public class PluginService(IDialogService dialogService, ILogService logService,
         var xeditExe = Info.Instance.XEditExe?.ToLower();
         if (string.IsNullOrEmpty(xeditExe)) return null;
 
-        if (Info.Instance.LowerSpecific.Contains(xeditExe))
+        if (Info.Instance.XEditListSpecific.Contains(xeditExe, StringComparer.OrdinalIgnoreCase))
         {
             UpdateLogPaths();
             return CreateSpecificCommand(plugin);
         }
 
         if (Info.Instance.LoadOrderPath?.Contains("loadorder", StringComparison.OrdinalIgnoreCase) == true 
-            && Info.Instance.LowerUniversal.Contains(xeditExe))
+            && Info.Instance.XEditListUniversal.Contains(xeditExe, StringComparer.OrdinalIgnoreCase))
         {
             var gameMode = GetGameMode();
             if (string.IsNullOrEmpty(gameMode))
@@ -298,9 +298,8 @@ public class PluginService(IDialogService dialogService, ILogService logService,
 
     private bool MatchesCondition(string processName)
     {
-        var normalizedName = Path.GetFileName(processName).ToLower();
-        return Info.Instance.LowerSpecific.Contains(normalizedName) || 
-               Info.Instance.LowerUniversal.Contains(normalizedName);
+        return Info.Instance.XEditListSpecific.Contains(processName, StringComparer.OrdinalIgnoreCase) || 
+               Info.Instance.XEditListUniversal.Contains(processName, StringComparer.OrdinalIgnoreCase);
     }
 
     private async Task<bool> CheckProcessErrorsAsync(Process process, string pluginName)
@@ -403,7 +402,7 @@ public class PluginService(IDialogService dialogService, ILogService logService,
 
     private bool CheckMutagenCompatible(string gameMode)
     {
-        string[] compatibleModes = ["sse", "fo4"];
+        string[] compatibleModes = ["sse", "fo4", "tes4"];
         return compatibleModes.Contains(gameMode);
     }
     
@@ -420,6 +419,7 @@ public class PluginService(IDialogService dialogService, ILogService logService,
             var x when x.Contains("Fallout3.esm") => "fo3",
             var x when x.Contains("FalloutNV.esm") => "fnv",
             var x when x.Contains("Fallout4.esm") => "fo4",
+            var x when x.Contains("Oblivion.esm") => "tes4",
             _ => throw new InvalidOperationException("Unable to determine game mode")
         };
     }
