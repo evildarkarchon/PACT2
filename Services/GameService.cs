@@ -9,6 +9,10 @@ using Mutagen.Bethesda.Plugins.Records;
 
 namespace AutoQAC.Services;
 
+/// <summary>
+/// Provides various functionalities related to game modes and plugin handling
+/// for supported games, including detection, validation, and processing of game releases.
+/// </summary>
 public class GameService
 {
     private static readonly Dictionary<string, GameRelease[]> GameModeToRelease = new()
@@ -18,6 +22,13 @@ public class GameService
         { "tes4", [GameRelease.Oblivion] }
     };
 
+    /// <summary>
+    /// Checks whether the given game mode is supported by Mutagen.
+    /// </summary>
+    /// <param name="gameMode">The string identifier representing the game mode (e.g., "sse", "fo4", "tes4").</param>
+    /// <returns>
+    /// True if the provided game mode is supported by Mutagen; otherwise, false.
+    /// </returns>
     public static bool IsMutagenSupported(string? gameMode)
         => gameMode != null && GameModeToRelease.ContainsKey(gameMode);
 
