@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 
-namespace PACT2.Views;
+namespace AutoQAC.Views;
 
 public partial class MainWindow : Window
 {

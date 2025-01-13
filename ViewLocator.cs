@@ -1,9 +1,9 @@
 using System;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
-using PACT2.ViewModels;
+using AutoQAC.ViewModels;
 
-namespace PACT2;
+namespace AutoQAC;
 
 public class ViewLocator : IDataTemplate
 {

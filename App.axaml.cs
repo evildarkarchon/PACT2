@@ -1,10 +1,10 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using PACT2.ViewModels;
-using PACT2.Views;
+using AutoQAC.ViewModels;
+using MainWindow = AutoQAC.Views.MainWindow;
 
-namespace PACT2;
+namespace AutoQAC;
 
 public partial class App : Application
 {

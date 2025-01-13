@@ -3,7 +3,8 @@
   <component name="AvaloniaProject">
     <option name="projectPerEditor">
       <map>
-        <entry key="Views/MainWindow.axaml" value="PACT2.csproj" />
+        <entry key="App.axaml" value="AutoQAC.csproj" />
+        <entry key="Views/MainWindow.axaml" value="AutoQAC.csproj" />
       </map>
     </option>
   </component>

@@ -1,6 +1,6 @@
 ﻿using ReactiveUI;
 
-namespace PACT2.ViewModels;
+namespace AutoQAC.ViewModels;
 
 public class ViewModelBase : ReactiveObject
 {
