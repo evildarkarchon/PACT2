@@ -1,0 +1,15 @@
+﻿# This file contains plugin names that CLASSIC will IGNORE while scanning your crash logs and mod files.
+# When adding plugin names, make sure you add it under the correct game list, same applies to VR plugins.
+
+# To add plugin names yourself, make sure each plugin starts with a dash followed by a space,
+# AND ends with either .esm | .esp | .esl | Uppercase / lowercase does not matter.
+PACT_Ignore_FO3:
+  - Example Plugin.esp
+PACT_Ignore_FNV:
+  - Example Plugin.esp
+PACT_Ignore_FO4:
+  - Example Plugin.esp
+PACT_Ignore_SSE:
+  - Example Plugin.esp
+PACT_Ignore_TES4:
+  - Example Plugin.esp
