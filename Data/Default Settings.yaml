@@ -22,10 +22,6 @@
   # xEdit.exe is also supported, but requires that you set LoadOrder TXT path to loadorder.txt only.
   XEDIT EXE: ""
   
-  # Set or copy-paste your MO2 (ModOrganizer.exe) executable file path below.
-  # Required if MO2 is your main mod manager. Otherwise, leave this blank.
-  MO2 EXE: ""
-  
   # Allow XEdit to use partial forms.
   # This is an extremely experimental feature, and may cause issues.
   # It requires an XEdit version >= 4.1.5b.
