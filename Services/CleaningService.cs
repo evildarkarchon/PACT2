@@ -18,9 +18,31 @@ namespace AutoQAC.Services;
 /// of plugins in a software application. It offers methods to detect the game mode,
 /// retrieve the list of plugins to clean, and execute the cleaning process asynchronously.
 /// </summary>
-public class CleaningService(AutoQacConfiguration config, PluginInfo pluginInfo)
+public class CleaningService
 {
+    public CleaningService(AutoQacConfiguration config, PluginInfo pluginInfo, LoggingService loggingService)
+    {
+        _config = config;
+        _pluginInfo = pluginInfo;
+        _loggingService = loggingService;
+    
+        // Set up xEdit log paths based on the executable path
+        var xEditPath = new FileInfo(_config.XEditPath);
+        _xEditLogPath = Path.Combine(
+            xEditPath.DirectoryName!, 
+            $"{Path.GetFileNameWithoutExtension(xEditPath.Name).ToUpperInvariant()}_log.txt"
+        );
+        _xEditExceptionLogPath = Path.Combine(
+            xEditPath.DirectoryName!,
+            $"{Path.GetFileNameWithoutExtension(xEditPath.Name).ToUpperInvariant()}Exception.log"
+        );
+    }
     private readonly ISubject<CleaningProgress> _progress = new Subject<CleaningProgress>();
+    private readonly AutoQacConfiguration _config;
+    private readonly PluginInfo _pluginInfo;
+    private readonly LoggingService _loggingService;
+    private readonly string _xEditLogPath;
+    private readonly string _xEditExceptionLogPath;
 
     public IObservable<CleaningProgress> Progress => _progress;
 
@@ -40,7 +62,10 @@ public class CleaningService(AutoQacConfiguration config, PluginInfo pluginInfo)
     /// </exception>
     public async Task CleanPluginsAsync(CancellationToken cancellationToken)
     {
-        var gameMode = GameService.DetectGameMode(config.LoadOrderPath);
+        // Check journal expiration before starting
+        await _loggingService.CheckJournalExpirationAsync();
+
+        var gameMode = GameService.DetectGameMode(_config.LoadOrderPath);
         if (gameMode == null)
             throw new InvalidOperationException("Unable to detect game mode from load order file");
 
@@ -48,16 +73,21 @@ public class CleaningService(AutoQacConfiguration config, PluginInfo pluginInfo)
         var totalPlugins = plugins.Count;
 
         _progress.OnNext(new CleaningProgress(0, totalPlugins, "Starting cleaning process..."));
+        await _loggingService.LogToJournalAsync($"\nStarting cleaning process for {totalPlugins} plugins...");
 
         for (var i = 0; i < plugins.Count; i++)
         {
             if (cancellationToken.IsCancellationRequested)
+            {
+                await _loggingService.LogToJournalAsync("\nCleaning process cancelled by user");
                 break;
+            }
 
             var plugin = plugins[i];
-
             await CleanPluginAsync(plugin, i + 1, totalPlugins);
         }
+
+        await _loggingService.LogToJournalAsync($"\nCleaning process completed. Processed {_pluginInfo.PluginsProcessed} plugins.");
     }
 
     /// <summary>
@@ -71,7 +101,7 @@ public class CleaningService(AutoQacConfiguration config, PluginInfo pluginInfo)
     /// </returns>
     private async Task<List<string>> GetPluginsToCleanAsync()
     {
-        var gameMode = GameService.DetectGameMode(config.LoadOrderPath);
+        var gameMode = GameService.DetectGameMode(_config.LoadOrderPath);
 
         // For Mutagen-supported games, use its load order capabilities
         if (GameService.IsMutagenSupported(gameMode))
@@ -80,18 +110,18 @@ public class CleaningService(AutoQacConfiguration config, PluginInfo pluginInfo)
             var env = GameEnvironment.Typical.Construct(release);
             var loadOrder = env.LoadOrder.ListedOrder.Where(x => !x.Ghosted)
                 .Where(x => !GameService.IsEmptyPlugin(x.ModKey.FileName))
-                .Where(x => !GameService.HasMissingMasters(x.ModKey.FileName, gameMode!)).ToString().Split(["\n", "\r\n"], StringSplitOptions.None)
+                .Where(x => !GameService.HasMissingMasters(x.ModKey.FileName, gameMode!)).ToString()!.Split(["\n", "\r\n"], StringSplitOptions.None)
                 .ToList();
             return loadOrder;
         }
 
         // Fallback to text file parsing for non-Mutagen games
-        var content = await File.ReadAllLinesAsync(config.LoadOrderPath);
+        var content = await File.ReadAllLinesAsync(_config.LoadOrderPath);
         return content
             .Skip(1) // Skip first line
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .Select(line => line.Replace("*", "").Trim())
-            .Where(line => !pluginInfo.LocalSkipList.Contains(line))
+            .Where(line => !_pluginInfo.LocalSkipList.Contains(line))
             .ToList();
     }
 
@@ -118,36 +148,50 @@ public class CleaningService(AutoQacConfiguration config, PluginInfo pluginInfo)
     private async Task CleanPluginAsync(string plugin, int current, int total)
     {
         _progress.OnNext(new CleaningProgress(current, total, $"Cleaning {plugin}..."));
-        var xEditArgs = BuildXEditArgs(plugin);
-        using var process = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = config.XEditPath,
-                Arguments = xEditArgs,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            }
-        };
 
         try
         {
+            // Clear existing logs before starting
+            await _loggingService.ClearXEditLogAsync(_xEditLogPath);
+            await _loggingService.ClearXEditLogAsync(_xEditExceptionLogPath);
+
+            var xEditArgs = BuildXEditArgs(plugin);
+            using var process = new Process();
+            process.StartInfo = new ProcessStartInfo
+            {
+                FileName = _config.XEditPath,
+                Arguments = xEditArgs,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+
             process.Start();
             await process.WaitForExitAsync();
 
-            if (process.ExitCode == 0)
-                pluginInfo.PluginsCleaned++;
+            // Process cleaning results
+            var cleaningFound = await _loggingService.ProcessXEditLogAsync(_xEditLogPath, plugin);
+            if (cleaningFound)
+            {
+                _pluginInfo.PluginsCleaned++;
+            }
             else
-                pluginInfo.CleanFailedList.Add(plugin);
+            {
+                // If nothing was cleaned, add to ignore list
+                await _loggingService.LogToJournalAsync($"{plugin} -> Nothing to clean, adding to ignore list");
+            }
         }
         catch (Exception ex)
         {
-            pluginInfo.CleanFailedList.Add(plugin);
+            _pluginInfo.CleanFailedList.Add(plugin);
+            await _loggingService.LogToJournalAsync($"{plugin} -> Cleaning failed: {ex.Message}");
             throw new Exception($"Failed to clean plugin {plugin}: {ex.Message}");
         }
-
-        pluginInfo.PluginsProcessed++;
+        finally
+        {
+            _pluginInfo.PluginsProcessed++;
+        }
     }
 
     /// <summary>
@@ -164,7 +208,7 @@ public class CleaningService(AutoQacConfiguration config, PluginInfo pluginInfo)
     private string BuildXEditArgs(string plugin)
     {
         var args = $"-QAC -autoexit -autoload {plugin}";
-        if (config.PartialForms)
+        if (_config.PartialForms)
             args = $"-iknowwhatimdoing {args} -allowmakepartial";
         return args;
     }

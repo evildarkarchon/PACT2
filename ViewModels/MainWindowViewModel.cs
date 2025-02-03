@@ -1,6 +1,4 @@
-﻿// ViewModels/MainWindowViewModel.cs
-
-using System;
+﻿using System;
 using System.IO;
 using ReactiveUI;
 using System.Reactive.Linq;
@@ -13,25 +11,27 @@ using AutoQAC.Models;
 
 namespace AutoQAC.ViewModels;
 
-/// <summary>
-/// Represents the ViewModel for the main application window, implementing
-/// functionality and state management for the user interface.
-/// </summary>
-/// <remarks>
-/// The MainWindowViewModel provides reactive binding properties and commands
-/// to interact with the user interface layer. It manages the application's configuration,
-/// cleaning workflow progress, and state transitions.
-/// </remarks>
-public class MainWindowViewModel : ReactiveObject, IActivatableViewModel
+public class MainWindowViewModel : ReactiveObject, IActivatableViewModel, IDisposable
 {
     private readonly AutoQacConfiguration _config;
+    private readonly PluginInfo _pluginInfo;
     private readonly CleaningService _cleaningService;
+    private readonly LoggingService _loggingService;
+    private readonly ConfigurationService _configService;
+    private readonly UpdateService _updateService;
     private CancellationTokenSource? _cleaningCts;
+    private bool _disposed;
 
     private int _progress;
     private int _maxProgress;
     private string _statusMessage = string.Empty;
+    private string? _updateMessage;
     private bool _isCleaning;
+    private string _xEditPath = string.Empty;
+    private string _loadOrderPath = string.Empty;
+    private bool _debugMode;
+    private bool _partialForms;
+    private bool _updateCheck = true;
 
     public ViewModelActivator Activator { get; }
 
@@ -53,31 +53,93 @@ public class MainWindowViewModel : ReactiveObject, IActivatableViewModel
         private set => this.RaiseAndSetIfChanged(ref _statusMessage, value);
     }
 
+    public string? UpdateMessage
+    {
+        get => _updateMessage;
+        private set => this.RaiseAndSetIfChanged(ref _updateMessage, value);
+    }
+
     public bool IsCleaning
     {
         get => _isCleaning;
         private set => this.RaiseAndSetIfChanged(ref _isCleaning, value);
     }
 
+    public string XEditPath
+    {
+        get => _xEditPath;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _xEditPath, value);
+            SaveConfiguration();
+        }
+    }
+
+    public string LoadOrderPath
+    {
+        get => _loadOrderPath;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _loadOrderPath, value);
+            SaveConfiguration();
+        }
+    }
+
+    public bool DebugMode
+    {
+        get => _debugMode;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _debugMode, value);
+            SaveConfiguration();
+        }
+    }
+
+    public bool PartialForms
+    {
+        get => _partialForms;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _partialForms, value);
+            SaveConfiguration();
+        }
+    }
+
+    public bool UpdateCheck
+    {
+        get => _updateCheck;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _updateCheck, value);
+            SaveConfiguration();
+        }
+    }
+
     public ReactiveCommand<Unit, Unit> StartCleaningCommand { get; }
 
-    /// <summary>
-    /// Represents the ViewModel for the main application window, providing state management
-    /// and reactive bindings for the user interface. It supports configuration validation,
-    /// cleaning operations, and workflow progress updates.
-    /// </summary>
-    /// <remarks>
-    /// This class is responsible for orchestrating the interaction flow between the UI
-    /// and underlying services such as the cleaning process and configuration handling. It
-    /// utilizes the ReactiveUI framework to support reactive property handling and commands.
-    /// </remarks>
-    public MainWindowViewModel()
+    public MainWindowViewModel(LoggingService loggingService, ConfigurationService configService)
     {
         Activator = new ViewModelActivator();
 
-        _config = LoadConfiguration();
-        var pluginInfo = new PluginInfo();
-        _cleaningService = new CleaningService(_config, pluginInfo);
+        _configService = configService;
+        _config = _configService.LoadConfiguration();
+        _pluginInfo = new PluginInfo();
+        _loggingService = loggingService;
+        _cleaningService = new CleaningService(_config, _pluginInfo, _loggingService);
+        _updateService = new UpdateService(_loggingService);
+
+        // Initialize properties from configuration
+        XEditPath = _config.XEditPath;
+        LoadOrderPath = _config.LoadOrderPath;
+        DebugMode = _config.DebugMode;
+        PartialForms = _config.PartialForms;
+        UpdateCheck = _config.UpdateCheck;
+
+        if (_config.UpdateCheck)
+        {
+            // Fire and forget - we don't want to block startup
+            _ = CheckForUpdatesAsync();
+        }
 
         var canStartCleaning = this.WhenAnyValue(x => x.IsCleaning)
             .Select(cleaning => !cleaning && IsConfigurationValid());
@@ -95,34 +157,14 @@ public class MainWindowViewModel : ReactiveObject, IActivatableViewModel
         });
     }
 
-    /// <summary>
-    /// Determines whether the current configuration is valid by verifying the presence
-    /// and accessibility of required file paths in the configuration.
-    /// </summary>
-    /// <returns>
-    /// A boolean value indicating whether the configuration is valid. Returns true
-    /// if the required file paths are non-empty and point to existing files; otherwise, false.
-    /// </returns>
     private bool IsConfigurationValid()
     {
-        return !string.IsNullOrEmpty(_config.XEditPath) && 
-               !string.IsNullOrEmpty(_config.LoadOrderPath) &&
-               File.Exists(_config.XEditPath) &&
-               File.Exists(_config.LoadOrderPath);
+        return !string.IsNullOrEmpty(XEditPath) && 
+               !string.IsNullOrEmpty(LoadOrderPath) &&
+               File.Exists(XEditPath) &&
+               File.Exists(LoadOrderPath);
     }
 
-    /// <summary>
-    /// Updates the UI properties related to the cleaning operation's progress, including
-    /// the current progress value, maximum progress, and a status message.
-    /// </summary>
-    /// <param name="progress">
-    /// An instance of <see cref="CleaningProgress"/> containing the current progress value,
-    /// the total progress, and a message associated with the progress state.
-    /// </param>
-    /// <remarks>
-    /// This method is invoked whenever there's an update in the cleaning process progress,
-    /// allowing the user interface to reflect real-time changes in the cleaning workflow.
-    /// </remarks>
     private void UpdateProgress(CleaningProgress progress)
     {
         Progress = progress.Current;
@@ -130,19 +172,18 @@ public class MainWindowViewModel : ReactiveObject, IActivatableViewModel
         StatusMessage = progress.Message;
     }
 
-    /// <summary>
-    /// Initiates the asynchronous cleaning process for plugins, utilizing the configured cleaning service.
-    /// This method handles cancellations, updates cleaning state, and manages error reporting.
-    /// </summary>
-    /// <remarks>
-    /// This method is invoked by the StartCleaningCommand and ensures thread safety while modifying
-    /// the cleaning state. It also ensures proper resource cleanup and status updates upon completion
-    /// or error occurrences.
-    /// </remarks>
-    /// <returns>
-    /// A Task representing the ongoing cleaning operation, completing when the process finishes
-    /// or an exception is thrown.
-    /// </returns>
+    private void SaveConfiguration()
+    {
+        _configService.UpdateConfiguration(config =>
+        {
+            config.XEditPath = XEditPath;
+            config.LoadOrderPath = LoadOrderPath;
+            config.DebugMode = DebugMode;
+            config.PartialForms = PartialForms;
+            config.UpdateCheck = UpdateCheck;
+        });
+    }
+
     private async Task StartCleaningAsync()
     {
         if (IsCleaning)
@@ -161,6 +202,7 @@ public class MainWindowViewModel : ReactiveObject, IActivatableViewModel
         catch (Exception ex)
         {
             StatusMessage = $"Error: {ex.Message}";
+            await _loggingService.LogToJournalAsync($"Error during cleaning: {ex.Message}");
         }
         finally
         {
@@ -170,16 +212,31 @@ public class MainWindowViewModel : ReactiveObject, IActivatableViewModel
         }
     }
 
-    private static AutoQacConfiguration LoadConfiguration()
+    private async Task CheckForUpdatesAsync()
     {
-        // TODO: Load from settings file
-        return new AutoQacConfiguration
+        try
         {
-            XEditPath = "",
-            LoadOrderPath = "",
-            CleaningTimeout = 300,
-            JournalExpiration = 7,
-            UpdateCheck = true
-        };
+            var result = await _updateService.CheckForUpdatesAsync();
+            UpdateMessage = result.Message;
+        }
+        catch (Exception ex)
+        {
+            await _loggingService.LogToJournalAsync($"Error checking for updates: {ex.Message}");
+            UpdateMessage = "Failed to check for updates";
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        
+        _updateService.Dispose();
+        _disposed = true;
+    }
+
+    // Finalizer as a backup
+    ~MainWindowViewModel()
+    {
+        Dispose();
     }
 }
