@@ -13,8 +13,6 @@ namespace AutoQAC.ViewModels;
 
 public class MainWindowViewModel : ReactiveObject, IActivatableViewModel, IDisposable
 {
-    private readonly AutoQacConfiguration _config;
-    private readonly PluginInfo _pluginInfo;
     private readonly CleaningService _cleaningService;
     private readonly LoggingService _loggingService;
     private readonly ConfigurationService _configService;
@@ -122,20 +120,20 @@ public class MainWindowViewModel : ReactiveObject, IActivatableViewModel, IDispo
         Activator = new ViewModelActivator();
 
         _configService = configService;
-        _config = _configService.LoadConfiguration();
-        _pluginInfo = new PluginInfo();
+        var config = _configService.LoadConfiguration();
+        var pluginInfo = new PluginInfo();
         _loggingService = loggingService;
-        _cleaningService = new CleaningService(_config, _pluginInfo, _loggingService);
+        _cleaningService = new CleaningService(config, pluginInfo, _loggingService);
         _updateService = new UpdateService(_loggingService);
 
         // Initialize properties from configuration
-        XEditPath = _config.XEditPath;
-        LoadOrderPath = _config.LoadOrderPath;
-        DebugMode = _config.DebugMode;
-        PartialForms = _config.PartialForms;
-        UpdateCheck = _config.UpdateCheck;
+        XEditPath = config.XEditPath;
+        LoadOrderPath = config.LoadOrderPath;
+        DebugMode = config.DebugMode;
+        PartialForms = config.PartialForms;
+        UpdateCheck = config.UpdateCheck;
 
-        if (_config.UpdateCheck)
+        if (config.UpdateCheck)
         {
             // Fire and forget - we don't want to block startup
             _ = CheckForUpdatesAsync();
@@ -159,7 +157,7 @@ public class MainWindowViewModel : ReactiveObject, IActivatableViewModel, IDispo
 
     private bool IsConfigurationValid()
     {
-        return !string.IsNullOrEmpty(XEditPath) && 
+        return !string.IsNullOrEmpty(XEditPath) &&
                !string.IsNullOrEmpty(LoadOrderPath) &&
                File.Exists(XEditPath) &&
                File.Exists(LoadOrderPath);
@@ -188,7 +186,7 @@ public class MainWindowViewModel : ReactiveObject, IActivatableViewModel, IDispo
     {
         if (IsCleaning)
         {
-            _cleaningCts?.Cancel();
+            await _cleaningCts?.CancelAsync()!;
             return;
         }
 
@@ -196,7 +194,7 @@ public class MainWindowViewModel : ReactiveObject, IActivatableViewModel, IDispo
         {
             IsCleaning = true;
             _cleaningCts = new CancellationTokenSource();
-            
+
             await _cleaningService.CleanPluginsAsync(_cleaningCts.Token);
         }
         catch (Exception ex)
@@ -229,7 +227,7 @@ public class MainWindowViewModel : ReactiveObject, IActivatableViewModel, IDispo
     public void Dispose()
     {
         if (_disposed) return;
-        
+
         _updateService.Dispose();
         _disposed = true;
     }

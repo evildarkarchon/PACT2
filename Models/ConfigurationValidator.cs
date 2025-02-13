@@ -37,21 +37,19 @@ public static class ConfigurationValidator
             }
         }
 
-        if (!string.IsNullOrEmpty(config.LoadOrderPath))
+        if (string.IsNullOrEmpty(config.LoadOrderPath)) return ConfigurationValidationResult.Success();
+        if (!File.Exists(config.LoadOrderPath))
         {
-            if (!File.Exists(config.LoadOrderPath))
-            {
-                return ConfigurationValidationResult.Failure(
-                    $"Load order file not found at path: {config.LoadOrderPath}");
-            }
+            return ConfigurationValidationResult.Failure(
+                $"Load order file not found at path: {config.LoadOrderPath}");
+        }
 
-            // Check if it's a text file
-            var extension = Path.GetExtension(config.LoadOrderPath);
-            if (!extension.Equals(".txt", StringComparison.OrdinalIgnoreCase))
-            {
-                return ConfigurationValidationResult.Failure(
-                    "Load order path must point to a text (.txt) file.");
-            }
+        // Check if it's a text file
+        var extension = Path.GetExtension(config.LoadOrderPath);
+        if (!extension.Equals(".txt", StringComparison.OrdinalIgnoreCase))
+        {
+            return ConfigurationValidationResult.Failure(
+                "Load order path must point to a text (.txt) file.");
         }
 
         return ConfigurationValidationResult.Success();

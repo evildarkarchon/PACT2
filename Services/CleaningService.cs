@@ -25,11 +25,11 @@ public class CleaningService
         _config = config;
         _pluginInfo = pluginInfo;
         _loggingService = loggingService;
-    
+
         // Set up xEdit log paths based on the executable path
         var xEditPath = new FileInfo(_config.XEditPath);
         _xEditLogPath = Path.Combine(
-            xEditPath.DirectoryName!, 
+            xEditPath.DirectoryName!,
             $"{Path.GetFileNameWithoutExtension(xEditPath.Name).ToUpperInvariant()}_log.txt"
         );
         _xEditExceptionLogPath = Path.Combine(
@@ -37,6 +37,7 @@ public class CleaningService
             $"{Path.GetFileNameWithoutExtension(xEditPath.Name).ToUpperInvariant()}Exception.log"
         );
     }
+
     private readonly ISubject<CleaningProgress> _progress = new Subject<CleaningProgress>();
     private readonly AutoQacConfiguration _config;
     private readonly PluginInfo _pluginInfo;
@@ -87,7 +88,8 @@ public class CleaningService
             await CleanPluginAsync(plugin, i + 1, totalPlugins);
         }
 
-        await _loggingService.LogToJournalAsync($"\nCleaning process completed. Processed {_pluginInfo.PluginsProcessed} plugins.");
+        await _loggingService.LogToJournalAsync(
+            $"\nCleaning process completed. Processed {_pluginInfo.PluginsProcessed} plugins.");
     }
 
     /// <summary>
@@ -110,7 +112,8 @@ public class CleaningService
             var env = GameEnvironment.Typical.Construct(release);
             var loadOrder = env.LoadOrder.ListedOrder.Where(x => !x.Ghosted)
                 .Where(x => !GameService.IsEmptyPlugin(x.ModKey.FileName))
-                .Where(x => !GameService.HasMissingMasters(x.ModKey.FileName, gameMode!)).ToString()!.Split(["\n", "\r\n"], StringSplitOptions.None)
+                .Where(x => !GameService.HasMissingMasters(x.ModKey.FileName, gameMode!)).ToString()!
+                .Split(["\n", "\r\n"], StringSplitOptions.None)
                 .ToList();
             return loadOrder;
         }

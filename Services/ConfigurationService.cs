@@ -1,5 +1,7 @@
 ﻿// Services/ConfigurationService.cs
+
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using AutoQAC.Models;
 using YamlDotNet.Serialization;
@@ -7,43 +9,33 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace AutoQAC.Services;
 
-public class ConfigurationService
+public class ConfigurationService(
+    string configPath = "AutoQAC Settings.yaml",
+    string defaultConfigPath = "Data/Default Settings.yaml")
 {
-    private readonly string _configPath;
-    private readonly string _defaultConfigPath;
-    private readonly IDeserializer _deserializer;
-    private readonly ISerializer _serializer;
+    private readonly IDeserializer _deserializer = new DeserializerBuilder()
+        .WithNamingConvention(UnderscoredNamingConvention.Instance)
+        .Build();
 
-    public ConfigurationService(
-        string configPath = "AutoQAC Settings.yaml", 
-        string defaultConfigPath = "Data/Default Settings.yaml")
-    {
-        _configPath = configPath;
-        _defaultConfigPath = defaultConfigPath;
-        
-        _deserializer = new DeserializerBuilder()
-            .WithNamingConvention(UnderscoredNamingConvention.Instance)
-            .Build();
-            
-        _serializer = new SerializerBuilder()
-            .WithNamingConvention(UnderscoredNamingConvention.Instance)
-            .Build();
-    }
+    private readonly ISerializer _serializer = new SerializerBuilder()
+        .WithNamingConvention(UnderscoredNamingConvention.Instance)
+        .Build();
 
     public AutoQacConfiguration LoadConfiguration()
     {
         try
         {
-            if (!File.Exists(_configPath))
+            if (!File.Exists(configPath))
             {
-                if (!File.Exists(_defaultConfigPath))
+                if (!File.Exists(defaultConfigPath))
                 {
-                    throw new FileNotFoundException("Default configuration file not found", _defaultConfigPath);
+                    throw new FileNotFoundException("Default configuration file not found", defaultConfigPath);
                 }
-                File.Copy(_defaultConfigPath, _configPath);
+
+                File.Copy(defaultConfigPath, configPath);
             }
 
-            var yaml = File.ReadAllText(_configPath);
+            var yaml = File.ReadAllText(configPath);
             var configData = _deserializer.Deserialize<ConfigurationData>(yaml);
             var config = configData.ToConfiguration();
 
@@ -61,7 +53,7 @@ public class ConfigurationService
         }
     }
 
-    public void SaveConfiguration(AutoQacConfiguration config)
+    private void SaveConfiguration(AutoQacConfiguration config)
     {
         try
         {
@@ -73,7 +65,7 @@ public class ConfigurationService
 
             var configData = ConfigurationData.FromConfiguration(config);
             var yaml = _serializer.Serialize(configData);
-            File.WriteAllText(_configPath, yaml);
+            File.WriteAllText(configPath, yaml);
         }
         catch (Exception ex)
         {
@@ -97,7 +89,8 @@ public class ConfigurationService
 
     private class ConfigurationData
     {
-        public class AutoQacSection
+        [SuppressMessage("ReSharper", "PropertyCanBeMadeInitOnly.Local")]
+        private class AutoQacSection
         {
             public bool UpdateCheck { get; set; } = true;
             public bool StatLogging { get; set; } = true;
@@ -109,7 +102,8 @@ public class ConfigurationService
             public bool DebugMode { get; set; }
         }
 
-        public AutoQacSection AutoQac { get; set; } = new();
+        // ReSharper disable once PropertyCanBeMadeInitOnly.Local
+        private AutoQacSection AutoQac { get; set; } = new();
 
         public AutoQacConfiguration ToConfiguration()
         {

@@ -24,7 +24,7 @@ public partial class App : Application
             var config = configService.LoadConfiguration();
             var pluginInfo = new PluginInfo();
             var loggingService = new LoggingService(config, pluginInfo);
-            
+
             desktop.MainWindow = new MainWindow
             {
                 DataContext = new MainWindowViewModel(loggingService, configService),

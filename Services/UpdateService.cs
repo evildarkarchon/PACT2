@@ -1,4 +1,5 @@
 ﻿// Services/UpdateService.cs
+
 using System;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -30,18 +31,20 @@ public class UpdateService : IDisposable
         try
         {
             var release = await _httpClient.GetFromJsonAsync<GitHubRelease>(VersionInfo.UpdateCheckUrl);
-            
+
             if (release?.Name == null)
             {
                 await _loggingService.LogToJournalAsync("Update check failed: Unable to parse GitHub response");
                 return new UpdateCheckResult(false, "Unable to parse GitHub response", null);
             }
 
-            var isUpToDate = string.Equals(release.Name, VersionInfo.CurrentVersion, StringComparison.OrdinalIgnoreCase);
+            var isUpToDate =
+                string.Equals(release.Name, VersionInfo.CurrentVersion, StringComparison.OrdinalIgnoreCase);
 
             if (!isUpToDate)
             {
-                var message = $"A new version ({release.Name}) is available. Current version: {VersionInfo.CurrentVersion}";
+                var message =
+                    $"A new version ({release.Name}) is available. Current version: {VersionInfo.CurrentVersion}";
                 await _loggingService.LogToJournalAsync($"Update check: {message}");
                 return new UpdateCheckResult(false, message, release.Name);
             }
@@ -59,11 +62,9 @@ public class UpdateService : IDisposable
 
     public void Dispose()
     {
-        if (!_disposed)
-        {
-            _httpClient.Dispose();
-            _disposed = true;
-        }
+        if (_disposed) return;
+        _httpClient.Dispose();
+        _disposed = true;
     }
 }
 

@@ -1,4 +1,5 @@
 ﻿// Services/LoggingService.cs
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -92,13 +93,11 @@ public partial class LoggingService(AutoQacConfiguration config, PluginInfo plug
 
             foreach (var line in logContent)
             {
-                if (ProcessLogLine(line, pluginName, out var logEntry))
+                if (!ProcessLogLine(line, pluginName, out var logEntry)) continue;
+                cleaningFound = true;
+                if (logEntry != null)
                 {
-                    cleaningFound = true;
-                    if (logEntry != null)
-                    {
-                        logEntries.Add(logEntry);
-                    }
+                    logEntries.Add(logEntry);
                 }
             }
 
@@ -158,14 +157,11 @@ public partial class LoggingService(AutoQacConfiguration config, PluginInfo plug
             return true;
         }
 
-        if (PartialFormPattern().Match(line) is { Success: true } partialMatch)
-        {
-            pluginInfo.CleanResultsPartialForms.Add(pluginName);
-            logEntry = "Created Partial Forms";
-            return true;
-        }
+        if (PartialFormPattern().Match(line) is not { Success: true } partialMatch) return false;
+        pluginInfo.CleanResultsPartialForms.Add(pluginName);
+        logEntry = "Created Partial Forms";
+        return true;
 
-        return false;
     }
 
     /// <summary>

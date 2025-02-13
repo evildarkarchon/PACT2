@@ -1,4 +1,5 @@
 ﻿// Services/IgnoreService.cs
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -17,15 +18,6 @@ public class IgnoreService
     private readonly string _defaultIgnorePath;
     private readonly IDeserializer _deserializer;
     private readonly ISerializer _serializer;
-
-    private static readonly string DefaultIgnoreContent = @"
-auto_qac_ignore:
-  sse: []
-  fo4: []
-  fo3: []
-  fnv: []
-  tes4: []
-";
 
     /// <summary>
     /// A service that provides methods for managing and modifying ignore lists
@@ -79,14 +71,12 @@ auto_qac_ignore:
             EnsureIgnoreFile();
             var yaml = File.ReadAllText(_ignorePath);
             var ignoreData = _deserializer.Deserialize<IgnoreData>(yaml);
-            
+
             var gameList = ignoreData.GetGameList(gameMode);
-            if (!gameList.Contains(plugin))
-            {
-                gameList.Add(plugin);
-                var updatedYaml = _serializer.Serialize(ignoreData);
-                File.WriteAllText(_ignorePath, updatedYaml);
-            }
+            if (gameList.Contains(plugin)) return;
+            gameList.Add(plugin);
+            var updatedYaml = _serializer.Serialize(ignoreData);
+            File.WriteAllText(_ignorePath, updatedYaml);
         }
         catch (Exception ex)
         {
@@ -101,23 +91,17 @@ auto_qac_ignore:
     /// </summary>
     private void EnsureIgnoreFile()
     {
-        if (!File.Exists(_ignorePath))
+        if (File.Exists(_ignorePath)) return;
+        if (File.Exists(_defaultIgnorePath))
         {
-            if (File.Exists(_defaultIgnorePath))
-            {
-                File.Copy(_defaultIgnorePath, _ignorePath);
-            }
-            else
-            {
-                File.WriteAllText(_ignorePath, DefaultIgnoreContent);
-            }
+            File.Copy(_defaultIgnorePath, _ignorePath);
         }
     }
 
     /// <summary>
     /// Represents the data structure for ignore lists categorized by game modes.
     /// </summary>
-    private class IgnoreData
+    public class IgnoreData
     {
         /// <summary>
         /// Represents a section of ignore data specific to various game modes,
@@ -125,18 +109,18 @@ auto_qac_ignore:
         /// </summary>
         public class AutoQacIgnoreSection
         {
-            public List<string> Sse { get; set; } = new();
-            public List<string> Fo4 { get; set; } = new();
-            public List<string> Fo3 { get; set; } = new();
-            public List<string> Fnv { get; set; } = new();
-            public List<string> Tes4 { get; set; } = new();
+            public List<string> Sse { get; set; } = [];
+            public List<string> Fo4 { get; set; } = [];
+            public List<string> Fo3 { get; set; } = [];
+            public List<string> Fnv { get; set; } = [];
+            public List<string> Tes4 { get; set; } = [];
         }
 
         /// <summary>
         /// Represents the ignore data section that contains categorized ignore lists
         /// for different game modes such as SSE, FO4, FO3, FNV, and TES4.
         /// </summary>
-        public AutoQacIgnoreSection AutoQacIgnore { get; set; } = new();
+        private AutoQacIgnoreSection AutoQacIgnore { get; set; } = new();
 
         /// <summary>
         /// Retrieves a list of ignored plugins for a specific game mode.
