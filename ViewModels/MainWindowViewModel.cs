@@ -24,8 +24,8 @@ public class MainWindowViewModel : ViewModelBase
     private IStorageProvider? _storageProvider;
 
     // Observable collections and state
-    public ObservableCollection<Plugin> AvailablePlugins { get; } = new();
-    public AvaloniaList<int> PluginSelection { get; } = new();
+    public ObservableCollection<Plugin> AvailablePlugins { get; } = [];
+    public AvaloniaList<int> PluginSelection { get; } = [];
 
     private string _loadOrderPath = string.Empty;
     private string _xEditPath = string.Empty;
@@ -150,15 +150,9 @@ public class MainWindowViewModel : ViewModelBase
                 .Where(p => !ignoreList.Contains(p.Name))
                 .ToList();
 
-            foreach (var plugin in plugins)
+            foreach (var plugin in plugins.Where(plugin => !GameService.IsMutagenSupported(gameMode) ||
+                                                           !GameService.IsEmptyPlugin(plugin.Name)))
             {
-                // For Mutagen-supported games, check if plugin is empty
-                if (GameService.IsMutagenSupported(gameMode) &&
-                    GameService.IsEmptyPlugin(plugin.Name))
-                {
-                    continue;
-                }
-
                 AvailablePlugins.Add(plugin);
             }
 
@@ -244,7 +238,7 @@ public class MainWindowViewModel : ViewModelBase
     {
         CanStartCleaning = !string.IsNullOrEmpty(XEditPath) &&
                            !string.IsNullOrEmpty(LoadOrderPath) &&
-                           PluginSelection.Any() &&
+                           PluginSelection.Count > 0 &&
                            !_isCleaning;
     }
 

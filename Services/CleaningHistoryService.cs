@@ -17,6 +17,7 @@ public class CleaningHistoryService(
     private readonly IDeserializer _deserializer = new DeserializerBuilder()
         .WithNamingConvention(UnderscoredNamingConvention.Instance)
         .Build();
+
     private readonly ISerializer _serializer = new SerializerBuilder()
         .WithNamingConvention(UnderscoredNamingConvention.Instance)
         .Build();
@@ -95,17 +96,19 @@ public class CleaningHistoryService(
         }
     }
 
+    // ReSharper disable once ClassNeverInstantiated.Local
     private class HistoryData
     {
         public class AutoQacHistorySection
         {
-            public List<PluginHistoryEntry> Sse { get; set; } = new();
-            public List<PluginHistoryEntry> Fo4 { get; set; } = new();
-            public List<PluginHistoryEntry> Fo3 { get; set; } = new();
-            public List<PluginHistoryEntry> Fnv { get; set; } = new();
-            public List<PluginHistoryEntry> Tes4 { get; set; } = new();
+            public List<PluginHistoryEntry> Sse { get; set; } = [];
+            public List<PluginHistoryEntry> Fo4 { get; set; } = [];
+            public List<PluginHistoryEntry> Fo3 { get; set; } = [];
+            public List<PluginHistoryEntry> Fnv { get; set; } = [];
+            public List<PluginHistoryEntry> Tes4 { get; set; } = [];
         }
 
+        // ReSharper disable once MemberCanBePrivate.Local
         public AutoQacHistorySection AutoQacHistory { get; set; } = new();
 
         public List<PluginHistoryEntry> GetGameHistory(string gameMode) => gameMode.ToLowerInvariant() switch
