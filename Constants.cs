@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Mutagen.Bethesda.Starfield;
 
 namespace AutoQAC;
 
@@ -20,26 +19,26 @@ public static class Constants
         public const string InvalidLoadOrderFile = """
                                                    ❌ ERROR : CANNOT PROCESS LOAD ORDER FILE FOR XEDIT IN THIS SITUATION!
                                                    You have to set your load order file path to loadorder.txt and NOT plugins.txt
-                                                   This is so PACT can detect the right game. Change the load order file path and try again.
+                                                   This is so AutoQAC can detect the right game. Change the load order file path and try again.
                                                    """;
     }
 
     public static class Warnings
     {
         public const string InvalidSetup = """
-                                           ❌  WARNING : YOUR PACT INI SETUP IS INCORRECT!
+                                           ❌  WARNING : YOUR AUTOQAC SETUP IS INCORRECT!
                                            You likely set the wrong XEdit version for your game.
-                                           Check your EXE or PACT Settings.toml settings and try again.
+                                           Check your EXE or AutoQAC Settings.toml settings and try again.
                                            """;
 
         public const string OutdatedVersion = """
-                                              ❌  WARNING : YOUR PACT VERSION IS OUTDATED!
+                                              ❌  WARNING : YOUR AutoQAC VERSION IS OUTDATED!
                                               You can download the latest version from the PACT Nexus Page.
                                               https://www.nexusmods.com/fallout4/mods/48065
                                               """;
 
         public const string UpdateCheckFailed = """
-                                                ❌  WARNING : PACT FAILED TO CHECK FOR UPDATES!
+                                                ❌  WARNING : AutoQAC FAILED TO CHECK FOR UPDATES!
                                                 You can download the latest version from the PACT Nexus Page.
                                                 https://www.nexusmods.com/fallout4/mods/48065
                                                 """;
@@ -58,9 +57,11 @@ public static class Constants
         public static readonly string[] Fo4 = ["FO4Edit.exe", "FO4Edit64.exe"];
 
         public static readonly string[] Sse =
-            ["SSEEdit.exe", "SSEEdit64.exe", "TESVEdit.exe", "TESVEdit64.exe", "TES5Edit.exe", "TES5Edit64.exe", 
-                "TES5VREdit.ese, TES5VREdit64.ese"
-            ];
+        [
+            "SSEEdit.exe", "SSEEdit64.exe", "TESVEdit.exe", "TESVEdit64.exe", "TES5Edit.exe", "TES5Edit64.exe",
+            "TES5VREdit.ese, TES5VREdit64.ese"
+        ];
+
         public static readonly string[] Fnv = ["FNVEdit.exe", "FNVEdit64.exe"];
         public static readonly string[] Tes4 = ["TES4Edit.exe", "TES4Edit64.exe"];
         public static readonly string[] XEdit = ["xEdit.exe", "xEdit64.exe"];
@@ -93,17 +94,23 @@ public static class Constants
         [
             string.Empty, "FalloutNV.esm", "DeadMoney.esm", "HonestHearts.esm", "OldWorldBlues.esm", "LonesomeRoad.esm",
             "GunRunnersArsenal.esm", "TribalPack.esm", "MercenaryPack.esm", "ClassicPack.esm", "CaravanPack.esm",
-            "YUP - Base Game + All DLC.esm", "Unofficial Patch NVSE Plus.esp", "TaleOfTwoWastelands.esm", "TTWInteriors_Core.esm",
-            "TTWInteriorsProject_Combo.esm", "TTWInteriorsProject_CombatHotfix.esm", "TTWInteriorsProject_Merged.esm", "TTWInteriors_Core_Hotfix.esm"
+            "YUP - Base Game + All DLC.esm", "Unofficial Patch NVSE Plus.esp", "TaleOfTwoWastelands.esm",
+            "TTWInteriors_Core.esm",
+            "TTWInteriorsProject_Combo.esm", "TTWInteriorsProject_CombatHotfix.esm", "TTWInteriorsProject_Merged.esm",
+            "TTWInteriors_Core_Hotfix.esm"
         ];
 
         public static readonly IReadOnlyList<string> Tes4 =
         [
-            string.Empty, "Oblivion.esm", "Knights.esp", "DLCVileLair.esp", "DLCThievesDen.esp", "DLCSpellTomes.esp", "DLCShiveringIsles.esp",
+            string.Empty, "Oblivion.esm", "Knights.esp", "DLCVileLair.esp", "DLCThievesDen.esp", "DLCSpellTomes.esp",
+            "DLCShiveringIsles.esp",
             "DLCOrrery.esp", "DLCMehrunesRazor.esp", "DLCHorseArmor.esp", "DLCFrostCrag.esp", "DLCBattlehornCastle.esp",
-            "Unofficial Oblivion Patch.esp", "UDP Vampire Aging & Face Fix.esp", "DLCBattlehornCastle - Unofficial Patch.esp",
-            "DLCFrostCrag - Unofficial Patch.esp", "DLCHorseArmor - Unofficial Patch.esp", "DLCMehrunesRazor - Unofficial Patch.esp",
-            "DLCVileLair - Unofficial Patch.esp", "DLCThievesDen - Unofficial Patch.esp", "DLCSpellTomes - Unofficial Patch.esp",
+            "Unofficial Oblivion Patch.esp", "UDP Vampire Aging & Face Fix.esp",
+            "DLCBattlehornCastle - Unofficial Patch.esp",
+            "DLCFrostCrag - Unofficial Patch.esp", "DLCHorseArmor - Unofficial Patch.esp",
+            "DLCMehrunesRazor - Unofficial Patch.esp",
+            "DLCVileLair - Unofficial Patch.esp", "DLCThievesDen - Unofficial Patch.esp",
+            "DLCSpellTomes - Unofficial Patch.esp",
             "DLCOrrery - Unofficial Patch.esp"
         ];
     }

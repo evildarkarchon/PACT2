@@ -10,18 +10,18 @@ public class Plugin
     public required string Path { get; init; }
     public bool IsEnabled { get; set; } = true;
     public string? Description { get; init; }
-    
+
     // Cleaning history properties
     public DateTime? LastCleaned { get; init; }
     public CleaningResults? LastCleaningResults { get; init; }
-    
+
     public string StatusDescription => GetStatusDescription();
-    
+
     private string GetStatusDescription()
     {
         if (LastCleaned == null)
             return "Never cleaned";
-            
+
         var timeAgo = DateTime.UtcNow - LastCleaned.Value;
         var timeDescription = timeAgo.TotalDays switch
         {

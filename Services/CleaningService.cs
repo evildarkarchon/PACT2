@@ -1,13 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
 using System.Reactive.Subjects;
 using System.Threading;
 using System.Threading.Tasks;
 using AutoQAC.Models;
-using Mutagen.Bethesda.Environments;
 
 namespace AutoQAC.Services;
 
@@ -16,6 +14,7 @@ public class CleaningService
     private readonly AutoQacConfiguration _config;
     private readonly PluginInfo _pluginInfo;
     private readonly LoggingService _loggingService;
+    private readonly XEditProcessService _xEditProcessService;
     private readonly ISubject<CleaningProgress> _progress;
     private readonly string _xEditLogPath;
     private readonly string _xEditExceptionLogPath;
@@ -25,14 +24,15 @@ public class CleaningService
     public CleaningService(
         AutoQacConfiguration config,
         PluginInfo pluginInfo,
-        LoggingService loggingService)
+        LoggingService loggingService,
+        XEditProcessService xEditProcessService)
     {
         _config = config;
         _pluginInfo = pluginInfo;
         _loggingService = loggingService;
+        _xEditProcessService = xEditProcessService;
         _progress = new Subject<CleaningProgress>();
 
-        // Set up xEdit log paths based on the executable path
         var xEditPath = new FileInfo(_config.XEditPath);
         _xEditLogPath = Path.Combine(
             xEditPath.DirectoryName!,
@@ -44,10 +44,17 @@ public class CleaningService
         );
     }
 
-    public async Task CleanPluginAsync(string pluginName, CancellationToken cancellationToken)
+    public async Task CleanPluginAsync(string pluginName, string gameMode, CancellationToken cancellationToken)
     {
         try
         {
+            // Check if xEdit is already running
+            if (await _xEditProcessService.IsXEditRunningAsync(gameMode))
+            {
+                throw new InvalidOperationException(
+                    "xEdit is already running. Please close it before starting the cleaning process.");
+            }
+
             // Clear existing logs before starting
             if (!_config.DebugMode)
             {
@@ -68,8 +75,7 @@ public class CleaningService
             };
 
             var tcs = new TaskCompletionSource<bool>();
-            
-            process.Exited += (sender, args) => tcs.TrySetResult(true);
+            process.Exited += [SuppressMessage("ReSharper", "UnusedParameter.Local")](sender, args) => tcs.TrySetResult(true);
             process.EnableRaisingEvents = true;
 
             process.Start();
@@ -80,7 +86,7 @@ public class CleaningService
             try
             {
                 await Task.WhenAny(tcs.Task, Task.Delay(-1, cts.Token));
-                
+
                 if (!process.HasExited)
                 {
                     process.Kill();
@@ -93,6 +99,7 @@ public class CleaningService
                 {
                     process.Kill();
                 }
+
                 throw;
             }
 
@@ -105,7 +112,6 @@ public class CleaningService
             }
             else
             {
-                // If nothing was cleaned, add to ignore list
                 await _loggingService.LogToJournalAsync($"{pluginName} -> Nothing to clean, adding to ignore list");
             }
         }
@@ -117,6 +123,8 @@ public class CleaningService
         }
         finally
         {
+            // Ensure any remaining xEdit process is closed
+            await _xEditProcessService.EnsureXEditClosedAsync(gameMode);
             _pluginInfo.PluginsProcessed++;
         }
     }
@@ -128,6 +136,7 @@ public class CleaningService
         {
             args = $"-iknowwhatimdoing {args} -allowmakepartial";
         }
+
         return args;
     }
 }

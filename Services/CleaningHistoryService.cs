@@ -9,38 +9,24 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace AutoQAC.Services;
 
-public class CleaningHistoryService
+public class CleaningHistoryService(
+    LoggingService loggingService,
+    string historyPath = "AutoQAC History.yaml",
+    string defaultHistoryPath = "Data/Default History.yaml")
 {
-    private readonly string _historyPath;
-    private readonly string _defaultHistoryPath;
-    private readonly IDeserializer _deserializer;
-    private readonly ISerializer _serializer;
-    private readonly LoggingService _loggingService;
-
-    public CleaningHistoryService(
-        LoggingService loggingService,
-        string historyPath = "AutoQAC History.yaml",
-        string defaultHistoryPath = "Data/Default History.yaml")
-    {
-        _historyPath = historyPath;
-        _defaultHistoryPath = defaultHistoryPath;
-        _loggingService = loggingService;
-
-        _deserializer = new DeserializerBuilder()
-            .WithNamingConvention(UnderscoredNamingConvention.Instance)
-            .Build();
-
-        _serializer = new SerializerBuilder()
-            .WithNamingConvention(UnderscoredNamingConvention.Instance)
-            .Build();
-    }
+    private readonly IDeserializer _deserializer = new DeserializerBuilder()
+        .WithNamingConvention(UnderscoredNamingConvention.Instance)
+        .Build();
+    private readonly ISerializer _serializer = new SerializerBuilder()
+        .WithNamingConvention(UnderscoredNamingConvention.Instance)
+        .Build();
 
     public async Task<List<CleaningRecord>> GetCleaningHistoryAsync(string gameMode)
     {
         try
         {
             await EnsureHistoryFileAsync();
-            var yaml = await File.ReadAllTextAsync(_historyPath);
+            var yaml = await File.ReadAllTextAsync(historyPath);
             var historyData = _deserializer.Deserialize<HistoryData>(yaml);
             var records = historyData.GetGameHistory(gameMode);
 
@@ -60,7 +46,7 @@ public class CleaningHistoryService
         }
         catch (Exception ex)
         {
-            await _loggingService.LogToJournalAsync($"Failed to get cleaning history for {gameMode}: {ex.Message}");
+            await loggingService.LogToJournalAsync($"Failed to get cleaning history for {gameMode}: {ex.Message}");
             return new List<CleaningRecord>();
         }
     }
@@ -70,9 +56,9 @@ public class CleaningHistoryService
         try
         {
             await EnsureHistoryFileAsync();
-            var yaml = await File.ReadAllTextAsync(_historyPath);
+            var yaml = await File.ReadAllTextAsync(historyPath);
             var historyData = _deserializer.Deserialize<HistoryData>(yaml);
-            
+
             var record = new PluginHistoryEntry
             {
                 Plugin = pluginName,
@@ -81,29 +67,31 @@ public class CleaningHistoryService
             };
 
             historyData.AddRecord(gameMode, record);
-            
-            var updatedYaml = _serializer.Serialize(historyData);
-            await File.WriteAllTextAsync(_historyPath, updatedYaml);
 
-            await _loggingService.LogToJournalAsync($"Added cleaning record for {pluginName} to {gameMode} history");
+            var updatedYaml = _serializer.Serialize(historyData);
+            await File.WriteAllTextAsync(historyPath, updatedYaml);
+
+            await loggingService.LogToJournalAsync($"Added cleaning record for {pluginName} to {gameMode} history");
         }
         catch (Exception ex)
         {
-            await _loggingService.LogToJournalAsync($"Failed to add {pluginName} to cleaning history for {gameMode}: {ex.Message}");
+            await loggingService.LogToJournalAsync(
+                $"Failed to add {pluginName} to cleaning history for {gameMode}: {ex.Message}");
             throw;
         }
     }
 
     private async Task EnsureHistoryFileAsync()
     {
-        if (!File.Exists(_historyPath))
+        if (!File.Exists(historyPath))
         {
-            if (!File.Exists(_defaultHistoryPath))
+            if (!File.Exists(defaultHistoryPath))
             {
-                throw new FileNotFoundException("Default history file not found", _defaultHistoryPath);
+                throw new FileNotFoundException("Default history file not found", defaultHistoryPath);
             }
-            File.Copy(_defaultHistoryPath, _historyPath);
-            await _loggingService.LogToJournalAsync("Created new history file from default template");
+
+            File.Copy(defaultHistoryPath, historyPath);
+            await loggingService.LogToJournalAsync("Created new history file from default template");
         }
     }
 
@@ -133,10 +121,10 @@ public class CleaningHistoryService
         public void AddRecord(string gameMode, PluginHistoryEntry record)
         {
             var history = GetGameHistory(gameMode);
-            
+
             // Remove any existing record for this plugin
             history.RemoveAll(r => r.Plugin == record.Plugin);
-            
+
             // Add the new record
             history.Add(record);
         }

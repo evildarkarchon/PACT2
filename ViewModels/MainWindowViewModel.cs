@@ -18,7 +18,6 @@ namespace AutoQAC.ViewModels;
 public class MainWindowViewModel : ViewModelBase
 {
     private readonly AutoQacConfiguration _config;
-    private readonly PluginInfo _pluginInfo;
     private readonly CleaningService _cleaningService;
     private readonly LoggingService _loggingService;
     private readonly IgnoreService _ignoreService;
@@ -27,7 +26,7 @@ public class MainWindowViewModel : ViewModelBase
     // Observable collections and state
     public ObservableCollection<Plugin> AvailablePlugins { get; } = new();
     public AvaloniaList<int> PluginSelection { get; } = new();
-    
+
     private string _loadOrderPath = string.Empty;
     private string _xEditPath = string.Empty;
     private string _statusMessage = "Select load order location and xEdit executable to begin...";
@@ -83,16 +82,13 @@ public class MainWindowViewModel : ViewModelBase
     public ReactiveCommand<Unit, Unit> StartCleaningCommand { get; }
 
     public MainWindowViewModel(
-        LoggingService loggingService, 
+        LoggingService loggingService,
         AutoQacConfiguration config,
-        PluginInfo pluginInfo,
         CleaningService cleaningService,
-        GameService gameService,
         IgnoreService ignoreService)
     {
         _loggingService = loggingService;
         _config = config;
-        _pluginInfo = pluginInfo;
         _cleaningService = cleaningService;
         _ignoreService = ignoreService;
 
@@ -132,7 +128,7 @@ public class MainWindowViewModel : ViewModelBase
         {
             AvailablePlugins.Clear();
             var gameMode = GameService.DetectGameMode(LoadOrderPath);
-            
+
             if (gameMode == null)
             {
                 EmptyMessage = "Unable to detect game mode from load order";
@@ -141,7 +137,7 @@ public class MainWindowViewModel : ViewModelBase
 
             // Get ignore list for the game
             var ignoreList = _ignoreService.GetIgnoreList(gameMode);
-            
+
             var loadOrderContent = await File.ReadAllLinesAsync(LoadOrderPath);
             var plugins = loadOrderContent
                 .Skip(1) // Skip first line
@@ -157,12 +153,12 @@ public class MainWindowViewModel : ViewModelBase
             foreach (var plugin in plugins)
             {
                 // For Mutagen-supported games, check if plugin is empty
-                if (GameService.IsMutagenSupported(gameMode) && 
+                if (GameService.IsMutagenSupported(gameMode) &&
                     GameService.IsEmptyPlugin(plugin.Name))
                 {
                     continue;
                 }
-                
+
                 AvailablePlugins.Add(plugin);
             }
 
@@ -183,18 +179,18 @@ public class MainWindowViewModel : ViewModelBase
     private async Task BrowseLoadOrderAsync()
     {
         if (_storageProvider == null) return;
-        
+
         var filePickerOptions = new FilePickerOpenOptions
         {
             Title = "Select Load Order File",
             AllowMultiple = false,
-            FileTypeFilter = new[] 
-            { 
-                new FilePickerFileType("Text Files") 
-                { 
-                    Patterns = new[] { "*.txt" } 
-                } 
-            }
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Text Files")
+                {
+                    Patterns = ["*.txt"]
+                }
+            ]
         };
 
         var result = await _storageProvider.OpenFilePickerAsync(filePickerOptions);
@@ -208,18 +204,18 @@ public class MainWindowViewModel : ViewModelBase
     private async Task BrowseXEditAsync()
     {
         if (_storageProvider == null) return;
-        
+
         var filePickerOptions = new FilePickerOpenOptions
         {
             Title = "Select xEdit Executable",
             AllowMultiple = false,
-            FileTypeFilter = new[] 
-            { 
-                new FilePickerFileType("Executables") 
-                { 
-                    Patterns = new[] { "*.exe" } 
-                } 
-            }
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Executables")
+                {
+                    Patterns = ["*.exe"]
+                }
+            ]
         };
 
         var result = await _storageProvider.OpenFilePickerAsync(filePickerOptions);
@@ -246,17 +242,17 @@ public class MainWindowViewModel : ViewModelBase
 
     private void UpdateCanStartCleaning()
     {
-        CanStartCleaning = !string.IsNullOrEmpty(XEditPath) && 
-                          !string.IsNullOrEmpty(LoadOrderPath) && 
-                          PluginSelection.Any() &&
-                          !_isCleaning;
+        CanStartCleaning = !string.IsNullOrEmpty(XEditPath) &&
+                           !string.IsNullOrEmpty(LoadOrderPath) &&
+                           PluginSelection.Any() &&
+                           !_isCleaning;
     }
 
     private async Task StartCleaningAsync()
     {
         if (_isCleaning)
         {
-            _cleaningCancellation?.Cancel();
+            await _cleaningCancellation?.CancelAsync()!;
             return;
         }
 
@@ -272,6 +268,14 @@ public class MainWindowViewModel : ViewModelBase
                 .Select(index => AvailablePlugins[index])
                 .ToList();
 
+            // Get the game mode from the load order
+            var gameMode = GameService.DetectGameMode(_config.LoadOrderPath);
+            if (gameMode == null)
+            {
+                StatusMessage = "Error: Could not detect game mode from load order";
+                return;
+            }
+
             foreach (var plugin in selectedPlugins)
             {
                 if (_cleaningCancellation.Token.IsCancellationRequested)
@@ -281,7 +285,10 @@ public class MainWindowViewModel : ViewModelBase
                 }
 
                 StatusMessage = $"Cleaning {plugin.Name}...";
-                await _cleaningService.CleanPluginAsync(plugin.Name, _cleaningCancellation.Token);
+                await _cleaningService.CleanPluginAsync(
+                    plugin.Name,
+                    gameMode,
+                    _cleaningCancellation.Token);
             }
 
             StatusMessage = "Cleaning complete";

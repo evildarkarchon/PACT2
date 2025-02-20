@@ -22,15 +22,22 @@ public partial class App : Application
             // Initialize configuration
             var configService = new ConfigurationService();
             var config = configService.LoadConfiguration();
-            
+
             // Initialize core services
             var pluginInfo = new PluginInfo();
             var loggingService = new LoggingService(config, pluginInfo);
             var gameService = new GameService();
             var ignoreService = new IgnoreService();
-            
-            // Initialize cleaning service
-            var cleaningService = new CleaningService(config, pluginInfo, loggingService);
+
+            // Initialize xEdit process service
+            var xEditProcessService = new XEditProcessService(loggingService, config);
+
+            // Initialize cleaning service with xEdit process service
+            var cleaningService = new CleaningService(
+                config,
+                pluginInfo,
+                loggingService,
+                xEditProcessService);
 
             // Create and set up main window
             desktop.MainWindow = new MainWindow
@@ -38,9 +45,7 @@ public partial class App : Application
                 DataContext = new MainWindowViewModel(
                     loggingService,
                     config,
-                    pluginInfo,
                     cleaningService,
-                    gameService,
                     ignoreService)
             };
         }

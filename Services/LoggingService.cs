@@ -136,32 +136,31 @@ public partial class LoggingService(AutoQacConfiguration config, PluginInfo plug
         logEntry = null;
 
         // Check each pattern and update the corresponding set
-        if (UdrPattern().Match(line) is { Success: true } udrMatch)
+        if (UdrPattern().Match(line) is { Success: true })
         {
             pluginInfo.CleanResultsUdr.Add(pluginName);
             logEntry = "Cleaned UDRs";
             return true;
         }
 
-        if (ItmPattern().Match(line) is { Success: true } itmMatch)
+        if (ItmPattern().Match(line) is { Success: true })
         {
             pluginInfo.CleanResultsItm.Add(pluginName);
             logEntry = "Cleaned ITMs";
             return true;
         }
 
-        if (NvmPattern().Match(line) is { Success: true } nvmMatch)
+        if (NvmPattern().Match(line) is { Success: true })
         {
             pluginInfo.CleanResultsNvm.Add(pluginName);
             logEntry = "Found Deleted Navmeshes";
             return true;
         }
 
-        if (PartialFormPattern().Match(line) is not { Success: true } partialMatch) return false;
+        if (PartialFormPattern().Match(line) is not { Success: true }) return false;
         pluginInfo.CleanResultsPartialForms.Add(pluginName);
         logEntry = "Created Partial Forms";
         return true;
-
     }
 
     /// <summary>
