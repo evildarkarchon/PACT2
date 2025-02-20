@@ -19,15 +19,29 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Initialize services
+            // Initialize configuration
             var configService = new ConfigurationService();
             var config = configService.LoadConfiguration();
+            
+            // Initialize core services
             var pluginInfo = new PluginInfo();
             var loggingService = new LoggingService(config, pluginInfo);
+            var gameService = new GameService();
+            var ignoreService = new IgnoreService();
+            
+            // Initialize cleaning service
+            var cleaningService = new CleaningService(config, pluginInfo, loggingService);
 
+            // Create and set up main window
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(loggingService, configService),
+                DataContext = new MainWindowViewModel(
+                    loggingService,
+                    config,
+                    pluginInfo,
+                    cleaningService,
+                    gameService,
+                    ignoreService)
             };
         }
 

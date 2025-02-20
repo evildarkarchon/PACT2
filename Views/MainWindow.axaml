@@ -3,7 +3,7 @@
         xmlns:vm="using:AutoQAC.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
         x:Class="AutoQAC.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
@@ -11,9 +11,94 @@
         RequestedThemeVariant="Dark">
 
     <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
         <vm:MainWindowViewModel />
     </Design.DataContext>
 
+    <Grid RowDefinitions="Auto,*,Auto" Margin="10">
+        <!-- Top Panel - Path Selection -->
+        <StackPanel Grid.Row="0" Spacing="10">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBox Grid.Column="0" 
+                         Text="{Binding LoadOrderPath}"
+                         Watermark="Select load order file or game directory..."
+                         VerticalAlignment="Center"/>
+                <Button Grid.Column="1" 
+                        Content="Browse"
+                        Command="{Binding BrowseLoadOrderCommand}"
+                        Margin="5,0,0,0"/>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBox Grid.Column="0" 
+                         Text="{Binding XEditPath}"
+                         Watermark="Select xEdit executable..."
+                         VerticalAlignment="Center"/>
+                <Button Grid.Column="1" 
+                        Content="Browse"
+                        Command="{Binding BrowseXEditCommand}"
+                        Margin="5,0,0,0"/>
+            </Grid>
+        </StackPanel>
+
+        <!-- Middle Panel - Plugin List -->
+        <Grid Grid.Row="1" Margin="0,10" RowDefinitions="Auto,*">
+            <!-- Selection Controls -->
+            <StackPanel Grid.Row="0" 
+                        Orientation="Horizontal" 
+                        HorizontalAlignment="Right"
+                        Spacing="10"
+                        Margin="0,0,0,5">
+                <Button Content="Select All" 
+                        Command="{Binding SelectAllCommand}"
+                        IsEnabled="{Binding HasPlugins}"/>
+                <Button Content="Select None" 
+                        Command="{Binding SelectNoneCommand}"
+                        IsEnabled="{Binding HasPlugins}"/>
+            </StackPanel>
+
+            <!-- Plugin List -->
+            <Border Grid.Row="1" 
+                    BorderBrush="{DynamicResource SystemBaseMediumColor}"
+                    BorderThickness="1"
+                    CornerRadius="3">
+                <Grid>
+                    <ListBox ItemsSource="{Binding AvailablePlugins}"
+                             Selection="{Binding PluginSelection}"
+                             SelectionMode="Multiple"
+                             Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Name}" 
+                                             FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding StatusDescription}"
+                                             FontSize="12"
+                                             Foreground="{DynamicResource SystemBaseMediumColor}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    
+                    <!-- Empty State Message -->
+                    <TextBlock Text="{Binding EmptyMessage}"
+                             IsVisible="{Binding !HasPlugins}"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource SystemBaseMediumColor}"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Bottom Panel - Status and Actions -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0" 
+                      Text="{Binding StatusMessage}"
+                      VerticalAlignment="Center"/>
+            
+            <Button Grid.Column="1"
+                    Content="{Binding ActionButtonText}"
+                    Command="{Binding StartCleaningCommand}"
+                    IsEnabled="{Binding CanStartCleaning}"/>
+        </Grid>
+    </Grid>
 </Window>

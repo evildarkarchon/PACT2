@@ -1,240 +1,303 @@
-﻿using System;
+using System;
+using System.Collections.ObjectModel;
 using System.IO;
-using ReactiveUI;
-using System.Reactive.Linq;
-using System.Reactive.Disposables;
+using System.Linq;
 using System.Reactive;
 using System.Threading;
 using System.Threading.Tasks;
-using AutoQAC.Services;
+using System.Reactive.Linq;
+using Avalonia.Collections;
+using Avalonia.Platform.Storage;
+using ReactiveUI;
 using AutoQAC.Models;
+using AutoQAC.Services;
+using AutoQAC.Extensions;
 
 namespace AutoQAC.ViewModels;
 
-public class MainWindowViewModel : ReactiveObject, IActivatableViewModel, IDisposable
+public class MainWindowViewModel : ViewModelBase
 {
+    private readonly AutoQacConfiguration _config;
+    private readonly PluginInfo _pluginInfo;
     private readonly CleaningService _cleaningService;
     private readonly LoggingService _loggingService;
-    private readonly ConfigurationService _configService;
-    private readonly UpdateService _updateService;
-    private CancellationTokenSource? _cleaningCts;
-    private bool _disposed;
+    private readonly IgnoreService _ignoreService;
+    private IStorageProvider? _storageProvider;
 
-    private int _progress;
-    private int _maxProgress;
-    private string _statusMessage = string.Empty;
-    private string? _updateMessage;
-    private bool _isCleaning;
-    private string _xEditPath = string.Empty;
+    // Observable collections and state
+    public ObservableCollection<Plugin> AvailablePlugins { get; } = new();
+    public AvaloniaList<int> PluginSelection { get; } = new();
+    
     private string _loadOrderPath = string.Empty;
-    private bool _debugMode;
-    private bool _partialForms;
-    private bool _updateCheck = true;
+    private string _xEditPath = string.Empty;
+    private string _statusMessage = "Select load order location and xEdit executable to begin...";
+    private string _emptyMessage = "No plugins available";
+    private string _actionButtonText = "Start Cleaning";
+    private bool _isCleaning;
+    private bool _canStartCleaning;
+    private CancellationTokenSource? _cleaningCancellation;
 
-    public ViewModelActivator Activator { get; }
-
-    public int Progress
+    public string LoadOrderPath
     {
-        get => _progress;
-        private set => this.RaiseAndSetIfChanged(ref _progress, value);
-    }
-
-    public int MaxProgress
-    {
-        get => _maxProgress;
-        private set => this.RaiseAndSetIfChanged(ref _maxProgress, value);
-    }
-
-    public string StatusMessage
-    {
-        get => _statusMessage;
-        private set => this.RaiseAndSetIfChanged(ref _statusMessage, value);
-    }
-
-    public string? UpdateMessage
-    {
-        get => _updateMessage;
-        private set => this.RaiseAndSetIfChanged(ref _updateMessage, value);
-    }
-
-    public bool IsCleaning
-    {
-        get => _isCleaning;
-        private set => this.RaiseAndSetIfChanged(ref _isCleaning, value);
+        get => _loadOrderPath;
+        set => this.RaiseAndSetIfChanged(ref _loadOrderPath, value);
     }
 
     public string XEditPath
     {
         get => _xEditPath;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _xEditPath, value);
-            SaveConfiguration();
-        }
+        set => this.RaiseAndSetIfChanged(ref _xEditPath, value);
     }
 
-    public string LoadOrderPath
+    public string StatusMessage
     {
-        get => _loadOrderPath;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _loadOrderPath, value);
-            SaveConfiguration();
-        }
+        get => _statusMessage;
+        set => this.RaiseAndSetIfChanged(ref _statusMessage, value);
     }
 
-    public bool DebugMode
+    public string EmptyMessage
     {
-        get => _debugMode;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _debugMode, value);
-            SaveConfiguration();
-        }
+        get => _emptyMessage;
+        set => this.RaiseAndSetIfChanged(ref _emptyMessage, value);
     }
 
-    public bool PartialForms
+    public string ActionButtonText
     {
-        get => _partialForms;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _partialForms, value);
-            SaveConfiguration();
-        }
+        get => _actionButtonText;
+        set => this.RaiseAndSetIfChanged(ref _actionButtonText, value);
     }
 
-    public bool UpdateCheck
+    public bool HasPlugins => AvailablePlugins.Any();
+
+    public bool CanStartCleaning
     {
-        get => _updateCheck;
-        set
-        {
-            this.RaiseAndSetIfChanged(ref _updateCheck, value);
-            SaveConfiguration();
-        }
+        get => _canStartCleaning;
+        set => this.RaiseAndSetIfChanged(ref _canStartCleaning, value);
     }
 
+    // Commands
+    public ReactiveCommand<Unit, Unit> BrowseLoadOrderCommand { get; }
+    public ReactiveCommand<Unit, Unit> BrowseXEditCommand { get; }
+    public ReactiveCommand<Unit, Unit> SelectAllCommand { get; }
+    public ReactiveCommand<Unit, Unit> SelectNoneCommand { get; }
     public ReactiveCommand<Unit, Unit> StartCleaningCommand { get; }
 
-    public MainWindowViewModel(LoggingService loggingService, ConfigurationService configService)
+    public MainWindowViewModel(
+        LoggingService loggingService, 
+        AutoQacConfiguration config,
+        PluginInfo pluginInfo,
+        CleaningService cleaningService,
+        GameService gameService,
+        IgnoreService ignoreService)
     {
-        Activator = new ViewModelActivator();
-
-        _configService = configService;
-        var config = _configService.LoadConfiguration();
-        var pluginInfo = new PluginInfo();
         _loggingService = loggingService;
-        _cleaningService = new CleaningService(config, pluginInfo, _loggingService);
-        _updateService = new UpdateService(_loggingService);
+        _config = config;
+        _pluginInfo = pluginInfo;
+        _cleaningService = cleaningService;
+        _ignoreService = ignoreService;
 
-        // Initialize properties from configuration
-        XEditPath = config.XEditPath;
-        LoadOrderPath = config.LoadOrderPath;
-        DebugMode = config.DebugMode;
-        PartialForms = config.PartialForms;
-        UpdateCheck = config.UpdateCheck;
+        // Initialize commands
+        BrowseLoadOrderCommand = ReactiveCommand.CreateFromTask(BrowseLoadOrderAsync);
+        BrowseXEditCommand = ReactiveCommand.CreateFromTask(BrowseXEditAsync);
+        SelectAllCommand = ReactiveCommand.Create(SelectAll);
+        SelectNoneCommand = ReactiveCommand.Create(SelectNone);
+        StartCleaningCommand = ReactiveCommand.CreateFromTask(StartCleaningAsync);
 
-        if (config.UpdateCheck)
+        // Load saved paths
+        LoadOrderPath = _config.LoadOrderPath;
+        XEditPath = _config.XEditPath;
+
+        // Subscribe to path changes
+        this.WhenAnyValue(x => x.LoadOrderPath)
+            .Throttle(TimeSpan.FromMilliseconds(500))
+            .Subscribe(_ => LoadPluginsAsync().FireAndForget());
+
+        this.WhenAnyValue(x => x.XEditPath)
+            .Subscribe(_ => UpdateCanStartCleaning());
+
+        // Subscribe to selection changes
+        PluginSelection.CollectionChanged += (_, _) => UpdateCanStartCleaning();
+    }
+
+    public void Initialize(IStorageProvider storageProvider)
+    {
+        _storageProvider = storageProvider;
+    }
+
+    private async Task LoadPluginsAsync()
+    {
+        if (string.IsNullOrEmpty(LoadOrderPath) || !File.Exists(LoadOrderPath)) return;
+
+        try
         {
-            // Fire and forget - we don't want to block startup
-            _ = CheckForUpdatesAsync();
+            AvailablePlugins.Clear();
+            var gameMode = GameService.DetectGameMode(LoadOrderPath);
+            
+            if (gameMode == null)
+            {
+                EmptyMessage = "Unable to detect game mode from load order";
+                return;
+            }
+
+            // Get ignore list for the game
+            var ignoreList = _ignoreService.GetIgnoreList(gameMode);
+            
+            var loadOrderContent = await File.ReadAllLinesAsync(LoadOrderPath);
+            var plugins = loadOrderContent
+                .Skip(1) // Skip first line
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Select(line => new Plugin
+                {
+                    Name = Path.GetFileName(line.Replace("*", "").Trim()),
+                    Path = Path.Combine(Path.GetDirectoryName(LoadOrderPath) ?? "", line.Replace("*", "").Trim())
+                })
+                .Where(p => !ignoreList.Contains(p.Name))
+                .ToList();
+
+            foreach (var plugin in plugins)
+            {
+                // For Mutagen-supported games, check if plugin is empty
+                if (GameService.IsMutagenSupported(gameMode) && 
+                    GameService.IsEmptyPlugin(plugin.Name))
+                {
+                    continue;
+                }
+                
+                AvailablePlugins.Add(plugin);
+            }
+
+            if (!AvailablePlugins.Any())
+            {
+                EmptyMessage = "No plugins available for cleaning";
+            }
+
+            UpdateCanStartCleaning();
         }
-
-        var canStartCleaning = this.WhenAnyValue(x => x.IsCleaning)
-            .Select(cleaning => !cleaning && IsConfigurationValid());
-
-        StartCleaningCommand = ReactiveCommand.CreateFromTask(
-            StartCleaningAsync,
-            canStartCleaning);
-
-        this.WhenActivated(disposables =>
+        catch (Exception ex)
         {
-            _cleaningService.Progress
-                .ObserveOn(RxApp.MainThreadScheduler)
-                .Subscribe(UpdateProgress)
-                .DisposeWith(disposables);
-        });
+            StatusMessage = $"Error loading plugins: {ex.Message}";
+            await _loggingService.LogToJournalAsync($"Error loading plugins: {ex.Message}");
+        }
     }
 
-    private bool IsConfigurationValid()
+    private async Task BrowseLoadOrderAsync()
     {
-        return !string.IsNullOrEmpty(XEditPath) &&
-               !string.IsNullOrEmpty(LoadOrderPath) &&
-               File.Exists(XEditPath) &&
-               File.Exists(LoadOrderPath);
-    }
-
-    private void UpdateProgress(CleaningProgress progress)
-    {
-        Progress = progress.Current;
-        MaxProgress = progress.Total;
-        StatusMessage = progress.Message;
-    }
-
-    private void SaveConfiguration()
-    {
-        _configService.UpdateConfiguration(config =>
+        if (_storageProvider == null) return;
+        
+        var filePickerOptions = new FilePickerOpenOptions
         {
-            config.XEditPath = XEditPath;
-            config.LoadOrderPath = LoadOrderPath;
-            config.DebugMode = DebugMode;
-            config.PartialForms = PartialForms;
-            config.UpdateCheck = UpdateCheck;
-        });
+            Title = "Select Load Order File",
+            AllowMultiple = false,
+            FileTypeFilter = new[] 
+            { 
+                new FilePickerFileType("Text Files") 
+                { 
+                    Patterns = new[] { "*.txt" } 
+                } 
+            }
+        };
+
+        var result = await _storageProvider.OpenFilePickerAsync(filePickerOptions);
+        if (result.Count > 0)
+        {
+            LoadOrderPath = result[0].Path.LocalPath;
+            _config.LoadOrderPath = LoadOrderPath;
+        }
+    }
+
+    private async Task BrowseXEditAsync()
+    {
+        if (_storageProvider == null) return;
+        
+        var filePickerOptions = new FilePickerOpenOptions
+        {
+            Title = "Select xEdit Executable",
+            AllowMultiple = false,
+            FileTypeFilter = new[] 
+            { 
+                new FilePickerFileType("Executables") 
+                { 
+                    Patterns = new[] { "*.exe" } 
+                } 
+            }
+        };
+
+        var result = await _storageProvider.OpenFilePickerAsync(filePickerOptions);
+        if (result.Count > 0)
+        {
+            XEditPath = result[0].Path.LocalPath;
+            _config.XEditPath = XEditPath;
+        }
+    }
+
+    private void SelectAll()
+    {
+        PluginSelection.Clear();
+        for (var i = 0; i < AvailablePlugins.Count; i++)
+        {
+            PluginSelection.Add(i);
+        }
+    }
+
+    private void SelectNone()
+    {
+        PluginSelection.Clear();
+    }
+
+    private void UpdateCanStartCleaning()
+    {
+        CanStartCleaning = !string.IsNullOrEmpty(XEditPath) && 
+                          !string.IsNullOrEmpty(LoadOrderPath) && 
+                          PluginSelection.Any() &&
+                          !_isCleaning;
     }
 
     private async Task StartCleaningAsync()
     {
-        if (IsCleaning)
+        if (_isCleaning)
         {
-            await _cleaningCts?.CancelAsync()!;
+            _cleaningCancellation?.Cancel();
             return;
         }
 
         try
         {
-            IsCleaning = true;
-            _cleaningCts = new CancellationTokenSource();
+            _isCleaning = true;
+            ActionButtonText = "Cancel";
+            UpdateCanStartCleaning();
 
-            await _cleaningService.CleanPluginsAsync(_cleaningCts.Token);
+            _cleaningCancellation = new CancellationTokenSource();
+
+            var selectedPlugins = PluginSelection
+                .Select(index => AvailablePlugins[index])
+                .ToList();
+
+            foreach (var plugin in selectedPlugins)
+            {
+                if (_cleaningCancellation.Token.IsCancellationRequested)
+                {
+                    StatusMessage = "Cleaning cancelled";
+                    break;
+                }
+
+                StatusMessage = $"Cleaning {plugin.Name}...";
+                await _cleaningService.CleanPluginAsync(plugin.Name, _cleaningCancellation.Token);
+            }
+
+            StatusMessage = "Cleaning complete";
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error: {ex.Message}";
+            StatusMessage = $"Error during cleaning: {ex.Message}";
             await _loggingService.LogToJournalAsync($"Error during cleaning: {ex.Message}");
         }
         finally
         {
-            IsCleaning = false;
-            _cleaningCts?.Dispose();
-            _cleaningCts = null;
+            _isCleaning = false;
+            ActionButtonText = "Start Cleaning";
+            _cleaningCancellation?.Dispose();
+            _cleaningCancellation = null;
+            UpdateCanStartCleaning();
         }
-    }
-
-    private async Task CheckForUpdatesAsync()
-    {
-        try
-        {
-            var result = await _updateService.CheckForUpdatesAsync();
-            UpdateMessage = result.Message;
-        }
-        catch (Exception ex)
-        {
-            await _loggingService.LogToJournalAsync($"Error checking for updates: {ex.Message}");
-            UpdateMessage = "Failed to check for updates";
-        }
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-
-        _updateService.Dispose();
-        _disposed = true;
-    }
-
-    // Finalizer as a backup
-    ~MainWindowViewModel()
-    {
-        Dispose();
     }
 }
