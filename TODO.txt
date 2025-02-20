@@ -1,0 +1,3 @@
+﻿Add proper progress tracking/reporting from the xEdit cleaning process to the UI
+Improve error message display in the UI
+Add cleanup of orphaned xEdit processes
