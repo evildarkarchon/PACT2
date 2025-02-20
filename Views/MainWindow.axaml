@@ -10,9 +10,7 @@
         Title="AutoQAC"
         RequestedThemeVariant="Dark">
 
-    <Design.DataContext>
-        <vm:MainWindowViewModel />
-    </Design.DataContext>
+    <!-- Remove the Design.DataContext section as we'll create a design-time view model class instead -->
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="10">
         <!-- Top Panel - Path Selection -->

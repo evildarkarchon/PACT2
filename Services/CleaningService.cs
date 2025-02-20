@@ -76,7 +76,8 @@ public class CleaningService
 
             var tcs = new TaskCompletionSource<bool>();
             process.Exited +=
-                [SuppressMessage("ReSharper", "UnusedParameter.Local")](sender, args) => tcs.TrySetResult(true);
+                [SuppressMessage("ReSharper", "UnusedParameter.Local")]
+                (sender, args) => tcs.TrySetResult(true);
             process.EnableRaisingEvents = true;
 
             process.Start();
