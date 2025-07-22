@@ -33,27 +33,39 @@ public class CleaningService
         _xEditProcessService = xEditProcessService;
         _progress = new Subject<CleaningProgress>();
 
-        var xEditPath = new FileInfo(_config.XEditPath);
-        _xEditLogPath = Path.Combine(
-            xEditPath.DirectoryName!,
-            $"{Path.GetFileNameWithoutExtension(xEditPath.Name).ToUpperInvariant()}_log.txt"
-        );
-        _xEditExceptionLogPath = Path.Combine(
-            xEditPath.DirectoryName!,
-            $"{Path.GetFileNameWithoutExtension(xEditPath.Name).ToUpperInvariant()}Exception.log"
-        );
+        if (!string.IsNullOrEmpty(_config.XEditPath))
+        {
+            var xEditPath = new FileInfo(_config.XEditPath);
+            _xEditLogPath = Path.Combine(
+                xEditPath.DirectoryName!,
+                $"{Path.GetFileNameWithoutExtension(xEditPath.Name).ToUpperInvariant()}_log.txt"
+            );
+            _xEditExceptionLogPath = Path.Combine(
+                xEditPath.DirectoryName!,
+                $"{Path.GetFileNameWithoutExtension(xEditPath.Name).ToUpperInvariant()}Exception.log"
+            );
+        }
+        else
+        {
+            _xEditLogPath = string.Empty;
+            _xEditExceptionLogPath = string.Empty;
+        }
     }
 
     public async Task CleanPluginAsync(string pluginName, string gameMode, CancellationToken cancellationToken)
     {
         try
         {
+            _progress.OnNext(new CleaningProgress(0, 0, $"Starting cleanup of {pluginName}..."));
+            
             // Check if xEdit is already running
             if (await _xEditProcessService.IsXEditRunningAsync(gameMode))
             {
                 throw new InvalidOperationException(
                     "xEdit is already running. Please close it before starting the cleaning process.");
             }
+
+            _progress.OnNext(new CleaningProgress(0, 0, $"Preparing xEdit for {pluginName}..."));
 
             // Clear existing logs before starting
             if (!_config.DebugMode)
@@ -80,6 +92,7 @@ public class CleaningService
                 (sender, args) => tcs.TrySetResult(true);
             process.EnableRaisingEvents = true;
 
+            _progress.OnNext(new CleaningProgress(0, 0, $"Running xEdit for {pluginName}..."));
             process.Start();
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -105,15 +118,19 @@ public class CleaningService
                 throw;
             }
 
+            _progress.OnNext(new CleaningProgress(0, 0, $"Processing results for {pluginName}..."));
+            
             // Process cleaning results
             var cleaningFound = await _loggingService.ProcessXEditLogAsync(_xEditLogPath, pluginName);
             if (cleaningFound)
             {
                 _pluginInfo.PluginsCleaned++;
+                _progress.OnNext(new CleaningProgress(0, 0, $"Successfully cleaned {pluginName}"));
                 await _loggingService.LogToJournalAsync($"Successfully cleaned {pluginName}");
             }
             else
             {
+                _progress.OnNext(new CleaningProgress(0, 0, $"{pluginName} -> Nothing to clean"));
                 await _loggingService.LogToJournalAsync($"{pluginName} -> Nothing to clean, adding to ignore list");
             }
         }
@@ -140,5 +157,42 @@ public class CleaningService
         }
 
         return args;
+    }
+
+    public async Task CleanPluginsAsync(System.Collections.Generic.IList<Plugin> plugins, string gameMode, CancellationToken cancellationToken)
+    {
+        var total = plugins.Count;
+        var current = 0;
+
+        _progress.OnNext(new CleaningProgress(current, total, $"Starting batch cleanup of {total} plugins..."));
+
+        foreach (var plugin in plugins)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                _progress.OnNext(new CleaningProgress(current, total, "Cleaning cancelled"));
+                break;
+            }
+
+            _progress.OnNext(new CleaningProgress(current, total, $"Cleaning {plugin.Name}... ({current + 1}/{total})"));
+            
+            try
+            {
+                await CleanPluginAsync(plugin.Name, gameMode, cancellationToken);
+                current++;
+                _progress.OnNext(new CleaningProgress(current, total, $"Completed {plugin.Name} ({current}/{total})"));
+            }
+            catch (Exception ex)
+            {
+                current++;
+                _progress.OnNext(new CleaningProgress(current, total, $"Failed to clean {plugin.Name}: {ex.Message}"));
+                // Continue with next plugin instead of stopping the entire batch
+            }
+        }
+
+        if (!cancellationToken.IsCancellationRequested)
+        {
+            _progress.OnNext(new CleaningProgress(current, total, $"Batch cleaning complete: {current}/{total} plugins processed"));
+        }
     }
 }

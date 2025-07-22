@@ -3,8 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
+using Mutagen.Bethesda;
 
 namespace AutoQAC.Services;
 
@@ -46,17 +48,127 @@ public class IgnoreService
     /// <returns>A list of strings representing the ignore list for the specified game mode.</returns>
     public List<string> GetIgnoreList(string gameMode)
     {
+        var combinedList = new List<string>();
+        
+        // Add hardcoded skip lists first
+        var hardcodedList = GetHardcodedSkipList(gameMode);
+        combinedList.AddRange(hardcodedList);
+        
         try
         {
             EnsureIgnoreFile();
             var yaml = File.ReadAllText(_ignorePath);
             var ignoreData = _deserializer.Deserialize<IgnoreData>(yaml);
-            return ignoreData.GetGameList(gameMode);
+            var yamlList = ignoreData.GetGameList(gameMode);
+            combinedList.AddRange(yamlList);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            throw new InvalidOperationException($"Failed to get ignore list for {gameMode}", ex);
+            // Failed to load YAML ignore list, but we still have the hardcoded list
+            // This ensures we always have at least the basic ignores (masters, DLCs, etc.)
         }
+        
+        // Remove duplicates and return
+        return combinedList.Distinct().ToList();
+    }
+
+    /// <summary>
+    /// Retrieves the ignore list for the specified GameRelease.
+    /// </summary>
+    /// <param name="gameRelease">The GameRelease for which the ignore list is to be retrieved.</param>
+    /// <returns>A list of strings representing the ignore list for the specified GameRelease.</returns>
+    public List<string> GetIgnoreListForGameRelease(GameRelease gameRelease)
+    {
+        var gameMode = ConvertGameReleaseToGameMode(gameRelease);
+        return GetIgnoreList(gameMode);
+    }
+
+    /// <summary>
+    /// Determines if a plugin should be ignored based on the ignore list for the specified game mode.
+    /// Uses case-insensitive matching and supports partial matches for ignore entries without file extensions.
+    /// </summary>
+    /// <param name="pluginName">The name of the plugin to check.</param>
+    /// <param name="gameMode">The game mode to check against.</param>
+    /// <returns>True if the plugin should be ignored, false otherwise.</returns>
+    public bool ShouldIgnorePlugin(string pluginName, string gameMode)
+    {
+        var ignoreList = GetIgnoreList(gameMode);
+        return ShouldIgnorePlugin(pluginName, ignoreList);
+    }
+
+    /// <summary>
+    /// Determines if a plugin should be ignored based on the ignore list for the specified GameRelease.
+    /// Uses case-insensitive matching and supports partial matches for ignore entries without file extensions.
+    /// </summary>
+    /// <param name="pluginName">The name of the plugin to check.</param>
+    /// <param name="gameRelease">The GameRelease to check against.</param>
+    /// <returns>True if the plugin should be ignored, false otherwise.</returns>
+    public bool ShouldIgnorePlugin(string pluginName, GameRelease gameRelease)
+    {
+        var gameMode = ConvertGameReleaseToGameMode(gameRelease);
+        return ShouldIgnorePlugin(pluginName, gameMode);
+    }
+
+    /// <summary>
+    /// Determines if a plugin should be ignored based on the provided ignore list.
+    /// Uses case-insensitive matching and supports partial matches for ignore entries without file extensions.
+    /// </summary>
+    /// <param name="pluginName">The name of the plugin to check.</param>
+    /// <param name="ignoreList">The list of ignore patterns to check against.</param>
+    /// <returns>True if the plugin should be ignored, false otherwise.</returns>
+    public bool ShouldIgnorePlugin(string pluginName, List<string> ignoreList)
+    {
+        if (string.IsNullOrWhiteSpace(pluginName) || ignoreList.Count == 0)
+            return false;
+
+        foreach (var ignoreEntry in ignoreList)
+        {
+            if (string.IsNullOrWhiteSpace(ignoreEntry))
+                continue;
+
+            // Check for exact case-insensitive match first
+            if (string.Equals(pluginName, ignoreEntry, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // If the ignore entry doesn't have an extension, try partial matching
+            if (!HasFileExtension(ignoreEntry))
+            {
+                var pluginNameWithoutExt = Path.GetFileNameWithoutExtension(pluginName);
+                if (string.Equals(pluginNameWithoutExt, ignoreEntry, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines if a string has a file extension.
+    /// </summary>
+    /// <param name="fileName">The filename to check.</param>
+    /// <returns>True if the filename has an extension, false otherwise.</returns>
+    private bool HasFileExtension(string fileName)
+    {
+        return !string.IsNullOrWhiteSpace(Path.GetExtension(fileName));
+    }
+
+    /// <summary>
+    /// Converts a GameRelease to the corresponding game mode string.
+    /// </summary>
+    /// <param name="gameRelease">The GameRelease to convert.</param>
+    /// <returns>The game mode string corresponding to the GameRelease.</returns>
+    private static string ConvertGameReleaseToGameMode(GameRelease gameRelease)
+    {
+        return gameRelease switch
+        {
+            GameRelease.SkyrimSE => "sse",
+            GameRelease.SkyrimSEGog => "sse",
+            GameRelease.SkyrimVR => "sse",
+            GameRelease.Fallout4 => "fo4",
+            GameRelease.Fallout4VR => "fo4",
+            GameRelease.Oblivion => "tes4",
+            _ => throw new ArgumentException($"Unsupported GameRelease: {gameRelease}", nameof(gameRelease))
+        };
     }
 
     /// <summary>
@@ -82,6 +194,24 @@ public class IgnoreService
         {
             throw new InvalidOperationException($"Failed to add {plugin} to ignore list for {gameMode}", ex);
         }
+    }
+
+    /// <summary>
+    /// Gets the hardcoded skip list for the specified game mode.
+    /// </summary>
+    /// <param name="gameMode">The game mode (fo3, fo4, sse, fnv, tes4).</param>
+    /// <returns>A list of strings representing the hardcoded skip list for the game mode.</returns>
+    private List<string> GetHardcodedSkipList(string gameMode)
+    {
+        return gameMode.ToLower() switch
+        {
+            "fo3" => Constants.SkipLists.Fo3.ToList(),
+            "fo4" => Constants.SkipLists.Fo4.ToList(),
+            "sse" => Constants.SkipLists.Skyrim.ToList(),
+            "fnv" => Constants.SkipLists.Fnv.ToList(),
+            "tes4" => Constants.SkipLists.Tes4.ToList(),
+            _ => []
+        };
     }
 
     /// <summary>

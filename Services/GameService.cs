@@ -186,6 +186,53 @@ public class GameService
     }
 
     /// <summary>
+    /// Detects the game mode based on the provided executable path.
+    /// </summary>
+    /// <param name="executablePath">The file path of the game executable to be analyzed.</param>
+    /// <returns>
+    /// A string representing the detected game mode if identifiable; otherwise, null.
+    /// </returns>
+    public static string? DetectGameModeFromExecutable(string executablePath)
+    {
+        if (string.IsNullOrWhiteSpace(executablePath)) return null;
+
+        var fileName = Path.GetFileName(executablePath).ToLowerInvariant();
+        return fileName switch
+        {
+            "skyrim.exe" or "skyrimse.exe" or "skyrimvr.exe" => "sse",
+            "fallout4.exe" or "fallout4vr.exe" => "fo4",
+            "oblivion.exe" => "tes4",
+            "fallout3.exe" => "fo3",
+            "falloutnv.exe" => "fnv",
+            _ => null
+        };
+    }
+
+    /// <summary>
+    /// Detects the specific game release from an executable path.
+    /// For Skyrim Special Edition, returns null to require user selection between SSE and SSE GOG.
+    /// </summary>
+    /// <param name="executablePath">The file path of the game executable.</param>
+    /// <returns>
+    /// The detected GameRelease, or null if user selection is required (for SSE variants).
+    /// </returns>
+    public static GameRelease? DetectGameReleaseFromExecutable(string executablePath)
+    {
+        if (string.IsNullOrWhiteSpace(executablePath)) return null;
+
+        var fileName = Path.GetFileName(executablePath).ToLowerInvariant();
+        return fileName switch
+        {
+            "skyrim.exe" or "skyrimse.exe" => null, // Requires user selection between SSE/SSE GOG
+            "skyrimvr.exe" => GameRelease.SkyrimVR,
+            "fallout4.exe" => GameRelease.Fallout4,
+            "fallout4vr.exe" => GameRelease.Fallout4VR,
+            "oblivion.exe" => GameRelease.Oblivion,
+            _ => null
+        };
+    }
+
+    /// <summary>
     /// Detects the game mode based on the provided load order file content.
     /// </summary>
     /// <param name="loadOrderPath">The file path of the load order file to be analyzed.</param>

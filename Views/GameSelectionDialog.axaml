@@ -1,0 +1,42 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="AutoQAC.Views.GameSelectionDialog"
+        Title="Select Game Edition"
+        Width="350"
+        Height="200"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        ShowInTaskbar="False">
+  <StackPanel Margin="20">
+    <TextBlock Text="Skyrim Special Edition Detected" 
+               FontWeight="Bold" 
+               FontSize="14"
+               Margin="0,0,0,15" />
+    
+    <TextBlock Text="Please select which edition you have installed:"
+               Margin="0,0,0,15" />
+    
+    <RadioButton Name="SteamRadioButton" 
+                 Content="Skyrim Special Edition (Steam)" 
+                 IsChecked="True"
+                 Margin="0,5" />
+    
+    <RadioButton Name="GogRadioButton" 
+                 Content="Skyrim Special Edition (GOG)" 
+                 Margin="0,5" />
+    
+    <StackPanel Orientation="Horizontal" 
+                HorizontalAlignment="Right" 
+                Margin="0,20,0,0">
+      <Button Name="OkButton" 
+              Content="OK" 
+              Width="70" 
+              Margin="0,0,10,0"
+              Click="OkButton_Click" />
+      <Button Name="CancelButton" 
+              Content="Cancel" 
+              Width="70"
+              Click="CancelButton_Click" />
+    </StackPanel>
+  </StackPanel>
+</Window>

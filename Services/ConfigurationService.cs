@@ -5,7 +5,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using AutoQAC.Models;
 using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 
 namespace AutoQAC.Services;
 
@@ -14,11 +13,9 @@ public class ConfigurationService(
     string defaultConfigPath = "Data/Default Settings.yaml")
 {
     private readonly IDeserializer _deserializer = new DeserializerBuilder()
-        .WithNamingConvention(UnderscoredNamingConvention.Instance)
         .Build();
 
     private readonly ISerializer _serializer = new SerializerBuilder()
-        .WithNamingConvention(UnderscoredNamingConvention.Instance)
         .Build();
 
     public AutoQacConfiguration LoadConfiguration()
@@ -90,33 +87,48 @@ public class ConfigurationService(
     private class ConfigurationData
     {
         [SuppressMessage("ReSharper", "PropertyCanBeMadeInitOnly.Local")]
-        private class AutoQacSection
+        public class AutoQacSection
         {
+            [YamlMember(Alias = "Update Check")]
             public bool UpdateCheck { get; set; } = true;
+            
+            [YamlMember(Alias = "Stat Logging")]
             public bool StatLogging { get; set; } = true;
+            
+            [YamlMember(Alias = "Cleaning Timeout")]
             public int CleaningTimeout { get; set; } = 300;
+            
+            [YamlMember(Alias = "Journal Expiration")]
             public int JournalExpiration { get; set; } = 7;
+            
+            [YamlMember(Alias = "LoadOrder TXT")]
             public string LoadOrderPath { get; set; } = string.Empty;
+            
+            [YamlMember(Alias = "XEDIT EXE")]
             public string XEditPath { get; set; } = string.Empty;
+            
+            [YamlMember(Alias = "Partial Forms")]
             public bool PartialForms { get; set; }
+            
+            [YamlMember(Alias = "Debug Mode")]
             public bool DebugMode { get; set; }
         }
 
         // ReSharper disable once PropertyCanBeMadeInitOnly.Local
-        private AutoQacSection AutoQac { get; set; } = new();
+        public AutoQacSection Settings { get; set; } = new();
 
         public AutoQacConfiguration ToConfiguration()
         {
             return new AutoQacConfiguration
             {
-                UpdateCheck = AutoQac.UpdateCheck,
-                StatLogging = AutoQac.StatLogging,
-                CleaningTimeout = AutoQac.CleaningTimeout,
-                JournalExpiration = AutoQac.JournalExpiration,
-                LoadOrderPath = AutoQac.LoadOrderPath,
-                XEditPath = AutoQac.XEditPath,
-                PartialForms = AutoQac.PartialForms,
-                DebugMode = AutoQac.DebugMode
+                UpdateCheck = Settings.UpdateCheck,
+                StatLogging = Settings.StatLogging,
+                CleaningTimeout = Settings.CleaningTimeout,
+                JournalExpiration = Settings.JournalExpiration,
+                LoadOrderPath = Settings.LoadOrderPath,
+                XEditPath = Settings.XEditPath,
+                PartialForms = Settings.PartialForms,
+                DebugMode = Settings.DebugMode
             };
         }
 
@@ -124,7 +136,7 @@ public class ConfigurationService(
         {
             return new ConfigurationData
             {
-                AutoQac = new AutoQacSection
+                Settings = new AutoQacSection
                 {
                     UpdateCheck = config.UpdateCheck,
                     StatLogging = config.StatLogging,
