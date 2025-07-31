@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoQAC", "AutoQAC.csproj", "{16F003FF-E106-4E3C-8D41-2144D7BF042C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoQAC", "AutoQAC\AutoQAC.csproj", "{16F003FF-E106-4E3C-8D41-2144D7BF042C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

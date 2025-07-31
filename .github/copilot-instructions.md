@@ -8,6 +8,7 @@ AutoQAC is an Avalonia-based desktop application for automatically cleaning Beth
 - All services are instantiated manually in `App.axaml.cs` in a **specific order** due to dependencies
 - Service instantiation sequence: `ConfigurationService` → `PluginInfo` → `LoggingService` → `GameService` → `IgnoreService` → `XEditProcessService` → `CleaningService`
 - `MainWindowViewModel` receives all services as constructor dependencies
+- No IoC container - services passed explicitly through constructors
 
 ### ReactiveUI MVVM Implementation
 - **ViewModelBase**: All ViewModels inherit from this base class with reactive property patterns
@@ -28,14 +29,27 @@ AutoQAC is an Avalonia-based desktop application for automatically cleaning Beth
 - **Default Config Pattern**: Copy from `Data/Default Settings.yaml` if `AutoQAC Settings.yaml` doesn't exist  
 - **Validation**: `ConfigurationValidator.Validate()` before saving changes
 - **Auto-save**: Configuration saved on application shutdown
+- **Two-Stage Deserialization**: YAML → `ConfigurationData` → `AutoQacConfiguration` for proper mapping
 
 ## Key Technical Patterns
+
+### xEdit Integration Specifics
+- **Command Line Arguments**: Always use `-QAC -autoexit -autoload` when launching xEdit processes
+- **Process Detection**: Game auto-detection via xEdit executable names (FO3Edit, FNVEdit, FO4Edit, SSEEdit)
+- **Log File Monitoring**: Monitor both `xEdit_log.txt` and `xEditException.log` in xEdit directory
+- **Orphan Process Prevention**: Use `XEditProcessService.EnsureXEditClosedAsync()` before starting new processes
 
 ### Game Support via Mutagen
 - **Multi-game Support**: Through Mutagen.Bethesda for plugin analysis and environment detection
 - **Game Release Detection**: `GameService.GetGameRelease()` tests compatibility for game variants (SSE/VR, FO4/VR)
 - **Master Validation**: `GameService.HasMissingMasters()` for plugin dependency checking
 - **Load Order Parsing**: Automatic detection from loadorder.txt/plugins.txt files
+
+### Progress Reporting Pattern
+- **Observable Streams**: Use `IObservable<CleaningProgress>` for real-time progress updates
+- **Subject Pattern**: Services expose progress via `Subject<T>` and return `IObservable<T>`
+- **UI Binding**: ViewModels subscribe to progress observables using `WhenAnyValue()` and `Subscribe()`
+- **Example**: `CleaningService.Progress` reports current plugin being cleaned and overall status
 
 ### Logging & Journal System
 - **Journal Expiration**: Configurable cleanup (default 7 days) via `LoggingService.ClearExpiredJournalAsync()`
@@ -66,7 +80,8 @@ dotnet build -c Release     # Release build
 2. **Process Safety**: Always use `XEditProcessService` for xEdit process management
 3. **Reactive Properties**: Use `RaiseAndSetIfChanged` for all ViewModel properties
 4. **Timeout Handling**: Implement cancellation tokens for long-running operations
-5. **YAML Naming**: Configuration classes use underscore naming convention
+5. **Error Messages**: Use constants from `Constants.cs` for standardized error/warning messages
+6. **Fire-and-Forget**: Use `TaskExtensions.FireAndForget()` for background tasks that don't need awaiting
 
 ### Current Development Priorities (from TODO.txt)
 - Improve xEdit progress tracking/reporting to UI
